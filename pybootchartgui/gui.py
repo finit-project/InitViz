@@ -429,6 +429,7 @@ class PyBootchartWindow(gtk.Window):
 
         # Create menu bar
         uimanager = gtk.UIManager()
+        self.uimanager = uimanager
         accelgroup = uimanager.get_accel_group()
         window.add_accel_group(accelgroup)
 
@@ -450,6 +451,7 @@ class PyBootchartWindow(gtk.Window):
         actiongroup.add_toggle_actions((
                 ('ShowPID', None, 'Show _PID', None, 'Show process IDs', self.on_toggle_show_pid, app_options.show_pid),
                 ('ShowAll', None, 'Show _All', None, 'Show full command lines and arguments', self.on_toggle_show_all, app_options.show_all),
+                ('ShowTabs', None, 'Show _Tabs', None, 'Show or hide tab bar', self.on_toggle_tabs, True),
         ))
 
         uimanager.insert_action_group(actiongroup, 0)
@@ -474,6 +476,7 @@ class PyBootchartWindow(gtk.Window):
                                 <separator/>
                                 <menuitem action="ShowPID"/>
                                 <menuitem action="ShowAll"/>
+                                <menuitem action="ShowTabs"/>
                         </menu>
                 </menubar>
         </ui>
@@ -500,6 +503,13 @@ class PyBootchartWindow(gtk.Window):
             kernel_tree = PyBootchartShell(window, trace, kernel_opts, 5.0)
             tab_page.append_page(kernel_tree, gtk.Label("Kernel boot"))
             self.tabs.append(kernel_tree)
+
+        # Auto-hide tab bar when there's only one tab
+        show_tabs = len(self.tabs) > 1
+        tab_page.set_show_tabs(show_tabs)
+
+        # Update the toggle action to match initial state
+        self.uimanager.get_action('/MenuBar/View/ShowTabs').set_active(show_tabs)
 
         full_tree.grab_focus(self)
 
@@ -698,6 +708,10 @@ class PyBootchartWindow(gtk.Window):
         # Update all tabs (they will update app_options)
         for tab in self.tabs:
             tab.on_toggle_show_all(action)
+
+    def on_toggle_tabs(self, action):
+        # Toggle visibility of tab bar
+        self.tab_page.set_show_tabs(action.get_active())
 
 
 def show(trace, options):
