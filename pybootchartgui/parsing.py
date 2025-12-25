@@ -14,8 +14,6 @@
 #  along with pybootchartgui. If not, see <http://www.gnu.org/licenses/>.
 
 
-from __future__ import with_statement
-
 import codecs
 import functools
 import io
