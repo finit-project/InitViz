@@ -14,9 +14,9 @@
 #  along with pybootchartgui. If not, see <http://www.gnu.org/licenses/>.
 
 
-from __future__ import with_statement
-
 import codecs
+import functools
+import io
 import itertools
 import os
 import string
@@ -237,7 +237,7 @@ def _parse_headers(file):
             value = line.strip()
         headers[last] += value
         return headers, last
-    return reduce(parse, file.read().decode('utf-8').split('\n'), (defaultdict(str),''))[0]
+    return functools.reduce(parse, file.read().split('\n'), (defaultdict(str),''))[0]
 
 def _iter_parse_timed_blocks(file):
     """Parses (ie., splits) a file into so-called timed-blocks.
@@ -256,7 +256,8 @@ def _iter_parse_timed_blocks(file):
             return (int(lines[0]), lines[1:])
         except ValueError:
             raise ParseError("expected a timed-block, but timestamp '%s' is not an integer" % lines[0])
-    data = codecs.iterdecode(file, "utf-8")
+    # File is already a text stream in Python 3
+    data = file
     block = [line.strip() for line in itertools.takewhile(lambda s: s != "\n", data)]
     while block:
         if block and not block[-1].endswith(" not running\n"):
@@ -275,7 +276,7 @@ def _parse_timed_blocks(file):
             return (int(lines[0]), lines[1:])
         except ValueError:
             raise ParseError("expected a timed-block, but timestamp '%s' is not an integer" % lines[0])
-    blocks = file.read().decode('utf-8').split('\n\n')
+    blocks = file.read().split('\n\n')
     return [parse(block) for block in blocks if block.strip() and not block.endswith(' not running\n')]
 
 def _parse_proc_ps_log(writer, file):
@@ -451,7 +452,7 @@ def _parse_proc_disk_stat_log(file, numCpu):
     not sda1, sda2 etc. The format of relevant lines should be:
     {major minor name rio rmerge rsect ruse wio wmerge wsect wuse running use aveq}
     """
-    disk_regex_re = re.compile ('^([hsv]d.|mtdblock\d|mmcblk\d|cciss/c\d+d\d+.*)$')
+    disk_regex_re = re.compile (r'^([hsv]d.|mtdblock\d|mmcblk\d|nvme\d+n\d+|cciss/c\d+d\d+.*)$')
 
     # this gets called an awful lot.
     def is_relevant_line(linetokens):
@@ -520,8 +521,8 @@ def _parse_proc_meminfo_log(file):
 # [    0.039993] calling  migration_init+0x0/0x6b @ 1
 # [    0.039993] initcall migration_init+0x0/0x6b returned 1 after 0 usecs
 def _parse_dmesg(writer, file):
-    timestamp_re = re.compile ("^\[\s*(\d+\.\d+)\s*]\s+(.*)$")
-    split_re = re.compile ("^(\S+)\s+([\S\+_-]+) (.*)$")
+    timestamp_re = re.compile (r"^\[\s*(\d+\.\d+)\s*]\s+(.*)$")
+    split_re = re.compile (r"^(\S+)\s+([\S\+_-]+) (.*)$")
     processMap = {}
     idx = 0
     inc = 1.0 / 1000000
@@ -529,7 +530,7 @@ def _parse_dmesg(writer, file):
     processMap['k-boot'] = kernel
     base_ts = False
     max_ts = 0
-    for line in file.read().decode('utf-8', 'replace').split('\n'):
+    for line in file.read().split('\n'):
         t = timestamp_re.match (line)
         if t is None:
 #                       print "duff timestamp " + line
@@ -566,7 +567,7 @@ def _parse_dmesg(writer, file):
 #               print "foo: '%s' '%s' '%s'" % (type, func, rest)
         if type == "calling":
             ppid = kernel.pid
-            p = re.match ("\@ (\d+)", rest)
+            p = re.match (r"\@ (\d+)", rest)
             if p is not None:
                 ppid = float (p.group(1)) // 1000
 #                               print "match: '%s' ('%g') at '%s'" % (func, ppid, time_ms)
@@ -617,7 +618,7 @@ def _parse_pacct(writer, file):
 def _parse_paternity_log(writer, file):
     parent_map = {}
     parent_map[0] = 0
-    for line in file.read().decode('utf-8').split('\n'):
+    for line in file.read().split('\n'):
         if not line:
             continue
         elems = line.split(' ') # <Child> <Parent>
@@ -630,7 +631,7 @@ def _parse_paternity_log(writer, file):
 
 def _parse_cmdline_log(writer, file):
     cmdLines = {}
-    for block in file.read().decode('utf-8').split('\n\n'):
+    for block in file.read().split('\n\n'):
         lines = block.split('\n')
         if len (lines) >= 3:
 #                       print "Lines '%s'" % (lines[0])
@@ -691,37 +692,37 @@ def parse_file(writer, state, filename):
     if state.filename is None:
         state.filename = filename
     basename = os.path.basename(filename)
-    with open(filename, "rb") as file:
+    with open(filename, "r") as file:
         return _do_parse(writer, state, basename, file)
 
 def parse_paths(writer, state, paths):
     for path in paths:
-        root, extension = os.path.splitext(path)
-        if not(os.path.exists(path)):
-            writer.warn("warning: path '%s' does not exist, ignoring." % path)
+        root, ext = os.path.splitext(path)
+        if not os.path.exists(path):
+            writer.warn(f"warning: path '{path}' does not exist, ignoring.")
             continue
         state.filename = path
         if os.path.isdir(path):
-            files = [ f for f in [os.path.join(path, f) for f in os.listdir(path)] if os.path.isfile(f) ]
+            files = [f for f in [os.path.join(path, f) for f in os.listdir(path)] if os.path.isfile(f)]
             files.sort()
             state = parse_paths(writer, state, files)
-        elif extension in [".tar", ".tgz", ".gz"]:
-            if extension == ".gz":
-                root, extension = os.path.splitext(root)
-                if extension != ".tar":
-                    writer.warn("warning: can only handle zipped tar files, not zipped '%s'-files; ignoring" % extension)
+        elif ext in [".tar", ".tgz", ".gz"]:
+            if ext == ".gz":
+                root, ext = os.path.splitext(root)
+                if ext != ".tar":
+                    writer.warn(f"warning: zipped '{ext}'-files not supported, only .tar.gz; ignoring")
                     continue
             tf = None
             try:
-                writer.status("parsing '%s'" % path)
-                tf = tarfile.open(path, 'r:*')
-                for name in tf.getnames():
-                    state = _do_parse(writer, state, name, tf.extractfile(name))
+                writer.status(f"parsing '{path}'")
+                with tarfile.open(path, 'r:*') as tf:
+                    for name in tf.getnames():
+                        data = tf.extractfile(name)
+                        if data:
+                            text = io.TextIOWrapper(data, encoding='utf-8')
+                            state = _do_parse(writer, state, name, text)
             except tarfile.ReadError as error:
-                raise ParseError("error: could not read tarfile '%s': %s." % (path, error))
-            finally:
-                if tf != None:
-                    tf.close()
+                raise ParseError(f"error: failed reading '{path}': {error}")
         else:
             state = parse_file(writer, state, path)
     return state

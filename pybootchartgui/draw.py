@@ -15,6 +15,7 @@
 
 
 import cairo
+import functools
 import math
 import re
 import random
@@ -419,8 +420,8 @@ def render(ctx, options, xscale, trace):
 			       curr_y, w, proc_height, sec_w)
 
 	curr_y = proc_height
-	ctx.set_font_size(SIG_FONT_SIZE)
-	draw_text(ctx, SIGNATURE, SIG_COLOR, off_x + 5, proc_height - 8)
+	# ctx.set_font_size(SIG_FONT_SIZE)
+	# draw_text(ctx, SIGNATURE, SIG_COLOR, off_x + 5, proc_height - 8)
 
 	# draw a cumulative CPU-time-per-process graph
 	if proc_tree.taskstats and options.cumulative:
@@ -469,8 +470,8 @@ def draw_header (ctx, headers, duration):
     toshow = [
       ('system.uname', 'uname', lambda s: s),
       ('system.release', 'release', lambda s: s),
-      ('system.cpu', 'CPU', lambda s: re.sub('model name\s*:\s*', '', s, 1)),
-      ('system.kernel.options', 'kernel options', lambda s: s),
+      ('system.cpu', 'CPU', lambda s: re.sub(r'model name\s*:\s*', '', s, 1)),
+      ('system.kernel.options', 'kernel cmdline', lambda s: s),
     ]
 
     header_y = ctx.font_extents()[2] + 10
@@ -488,7 +489,7 @@ def draw_header (ctx, headers, duration):
         draw_text(ctx, txt, TEXT_COLOR, off_x, header_y)
 
     dur = duration / 100.0
-    txt = 'time : %02d:%05.2f' % (math.floor(dur/60), dur - 60 * math.floor(dur/60))
+    txt = 'Boot time : %02d:%05.2f' % (math.floor(dur/60), dur - 60 * math.floor(dur/60))
     if headers.get('system.maxpid') is not None:
         txt = txt + '      max pid: %s' % (headers.get('system.maxpid'))
 
