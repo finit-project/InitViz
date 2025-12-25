@@ -420,8 +420,8 @@ def render(ctx, options, xscale, trace):
 			       curr_y, w, proc_height, sec_w)
 
 	curr_y = proc_height
-	ctx.set_font_size(SIG_FONT_SIZE)
-	draw_text(ctx, SIGNATURE, SIG_COLOR, off_x + 5, proc_height - 8)
+	# ctx.set_font_size(SIG_FONT_SIZE)
+	# draw_text(ctx, SIGNATURE, SIG_COLOR, off_x + 5, proc_height - 8)
 
 	# draw a cumulative CPU-time-per-process graph
 	if proc_tree.taskstats and options.cumulative:
