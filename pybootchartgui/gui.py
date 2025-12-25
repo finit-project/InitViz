@@ -464,6 +464,8 @@ class PyBootchartWindow(gtk.Window):
                 ('ZoomOut', gtk.STOCK_ZOOM_OUT, None, '<Control>minus', 'Zoom out', self.on_zoom_out),
                 ('ZoomFit', gtk.STOCK_ZOOM_FIT, 'Fit Width', None, 'Fit to width', self.on_zoom_fit),
                 ('Zoom100', gtk.STOCK_ZOOM_100, None, '<Control>0', 'Original size', self.on_zoom_100),
+                ('Help', None, '_Help'),
+                ('About', gtk.STOCK_ABOUT, None, None, 'About Bootchart', self.on_about),
         ))
 
         actiongroup.add_toggle_actions((
@@ -502,6 +504,9 @@ class PyBootchartWindow(gtk.Window):
                                 <menuitem action="ShowTabs"/>
                                 <menuitem action="ShowToolbar"/>
                                 <menuitem action="ShowStatusbar"/>
+                        </menu>
+                        <menu action="Help">
+                                <menuitem action="About"/>
                         </menu>
                 </menubar>
                 <toolbar name="ToolBar">
@@ -811,6 +816,26 @@ class PyBootchartWindow(gtk.Window):
         action = self.uimanager.get_action('/MenuBar/View/BestFit')
         if action:
             action.set_active(active)
+
+    def on_about(self, action):
+        about = gtk.AboutDialog()
+        about.set_transient_for(self)
+        about.set_program_name("Bootchart2")
+        about.set_version("0.14.9")
+        about.set_comments("Boot process performance visualization tool")
+        about.set_copyright("Copyright © 2009-2010 Novell, Inc.\nCopyright © Contributors")
+        about.set_license_type(gtk.License.GPL_3_0)
+        about.set_website("https://github.com/xrmx/bootchart")
+        about.set_website_label("Bootchart2 on GitHub")
+        about.set_authors([
+            "Michael Meeks",
+            "Riccardo Magliocchetti",
+            "And contributors"
+        ])
+        about.set_logo_icon_name("utilities-system-monitor")
+
+        about.run()
+        about.destroy()
 
 
 def show(trace, options):
