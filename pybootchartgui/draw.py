@@ -471,7 +471,7 @@ def draw_header (ctx, headers, duration):
       ('system.uname', 'uname', lambda s: s),
       ('system.release', 'release', lambda s: s),
       ('system.cpu', 'CPU', lambda s: re.sub(r'model name\s*:\s*', '', s, 1)),
-      ('system.kernel.options', 'kernel options', lambda s: s),
+      ('system.kernel.options', 'kernel cmdline', lambda s: s),
     ]
 
     header_y = ctx.font_extents()[2] + 10
@@ -489,7 +489,7 @@ def draw_header (ctx, headers, duration):
         draw_text(ctx, txt, TEXT_COLOR, off_x, header_y)
 
     dur = duration / 100.0
-    txt = 'time : %02d:%05.2f' % (math.floor(dur/60), dur - 60 * math.floor(dur/60))
+    txt = 'Boot time : %02d:%05.2f' % (math.floor(dur/60), dur - 60 * math.floor(dur/60))
     if headers.get('system.maxpid') is not None:
         txt = txt + '      max pid: %s' % (headers.get('system.maxpid'))
 
