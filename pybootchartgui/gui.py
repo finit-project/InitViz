@@ -13,6 +13,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with pybootchartgui. If not, see <http://www.gnu.org/licenses/>.
 
+import signal
 import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk as gtk
@@ -150,12 +151,6 @@ class PyBootchartWidget(gtk.DrawingArea, gtk.Scrollable):
     def on_zoom_100(self, action):
         self.zoom_image(1.0)
         self.set_xscale(1.0)
-
-    def show_toggled(self, button):
-        self.options.app_options.show_all = button.get_property ('active')
-        self.chart_width, self.chart_height = draw.extents(self.options, self.xscale, self.trace)
-        self._set_scroll_adjustments()
-        self.queue_draw()
 
     POS_INCREMENT = 100
 
@@ -365,33 +360,26 @@ class PyBootchartShell(gtk.VBox):
     def __init__(self, window, trace, options, xscale):
         gtk.VBox.__init__(self)
 
+        self.window = window
+        self.trace = trace
         self.widget2 = PyBootchartWidget(trace, options, xscale)
 
-        # Create a UIManager instance
         uimanager = self.uimanager = gtk.UIManager()
-
-        # Add the accelerator group to the toplevel window
         accelgroup = uimanager.get_accel_group()
         window.add_accel_group(accelgroup)
 
-        # Create an ActionGroup
         actiongroup = gtk.ActionGroup('Actions')
         self.actiongroup = actiongroup
-
-        # Create actions
         actiongroup.add_actions((
-                ('Expand', gtk.STOCK_ADD, None, None, None, self.widget2.on_expand),
-                ('Contract', gtk.STOCK_REMOVE, None, None, None, self.widget2.on_contract),
-                ('ZoomIn', gtk.STOCK_ZOOM_IN, None, None, None, self.widget2.on_zoom_in),
-                ('ZoomOut', gtk.STOCK_ZOOM_OUT, None, None, None, self.widget2.on_zoom_out),
-                ('ZoomFit', gtk.STOCK_ZOOM_FIT, 'Fit Width', None, None, self.widget2.on_zoom_fit),
-                ('Zoom100', gtk.STOCK_ZOOM_100, None, None, None, self.widget2.on_zoom_100),
+                ('Expand', gtk.STOCK_ADD, '_Expand Timeline', None, 'Expand timeline', self.widget2.on_expand),
+                ('Contract', gtk.STOCK_REMOVE, '_Contract Timeline', None, 'Contract timeline', self.widget2.on_contract),
+                ('ZoomIn', gtk.STOCK_ZOOM_IN, None, None, 'Zoom in', self.widget2.on_zoom_in),
+                ('ZoomOut', gtk.STOCK_ZOOM_OUT, None, None, 'Zoom out', self.widget2.on_zoom_out),
+                ('ZoomFit', gtk.STOCK_ZOOM_FIT, 'Fit Width', None, 'Fit to width', self.widget2.on_zoom_fit),
+                ('Zoom100', gtk.STOCK_ZOOM_100, None, None, 'Original size', self.widget2.on_zoom_100),
         ))
 
-        # Add the actiongroup to the uimanager
         uimanager.insert_action_group(actiongroup, 0)
-
-        # Add a UI description
         uimanager.add_ui_from_string(self.ui)
 
         # Scrolled window
@@ -399,26 +387,28 @@ class PyBootchartShell(gtk.VBox):
         scrolled.add(self.widget2)
         scrolled.set_policy(gtk.PolicyType.ALWAYS, gtk.PolicyType.ALWAYS)
 
-        # toolbar / h-box
-        hbox = gtk.HBox(False, 8)
-
-        # Create a Toolbar
+        # Get toolbar from UIManager
         toolbar = uimanager.get_widget('/ToolBar')
-        hbox.pack_start(toolbar, True, True, 0)
 
-        if not options.kernel_only:
-            # Misc. options
-            button = gtk.CheckButton("Show more")
-            button.connect ('toggled', self.widget2.show_toggled)
-            button.set_active(options.app_options.show_all)
-            hbox.pack_start (button, False, True, 0)
-
-        self.pack_start(hbox, False, True, 0)
+        # Pack widgets: toolbar, scrolled area
+        self.pack_start(toolbar, False, True, 0)
         self.pack_start(scrolled, True, True, 0)
         self.show_all()
 
     def grab_focus(self, window):
         window.set_focus(self.widget2)
+
+    def on_toggle_show_pid(self, action):
+        self.widget2.options.app_options.show_pid = action.get_active()
+        self.widget2.chart_width, self.widget2.chart_height = draw.extents(self.widget2.options, self.widget2.xscale, self.trace)
+        self.widget2._set_scroll_adjustments()
+        self.widget2.queue_draw()
+
+    def on_toggle_show_all(self, action):
+        self.widget2.options.app_options.show_all = action.get_active()
+        self.widget2.chart_width, self.widget2.chart_height = draw.extents(self.widget2.options, self.widget2.xscale, self.trace)
+        self.widget2._set_scroll_adjustments()
+        self.widget2.queue_draw()
 
 
 class PyBootchartWindow(gtk.Window):
@@ -430,27 +420,295 @@ class PyBootchartWindow(gtk.Window):
         window.set_title("Bootchart %s" % trace.filename)
         window.set_default_size(750, 550)
 
+        self.trace = trace
+        self.app_options = app_options
+
+        # Create main VBox to hold menubar and tabs
+        main_vbox = gtk.VBox(False, 0)
+        window.add(main_vbox)
+
+        # Create menu bar
+        uimanager = gtk.UIManager()
+        accelgroup = uimanager.get_accel_group()
+        window.add_accel_group(accelgroup)
+
+        actiongroup = gtk.ActionGroup('MenuActions')
+        actiongroup.add_actions((
+                ('File', None, '_File'),
+                ('Open', gtk.STOCK_OPEN, None, '<Control>O', 'Open bootchart', self.on_open),
+                ('Save', gtk.STOCK_SAVE_AS, None, '<Control>S', 'Save bootchart', self.on_save),
+                ('Close', gtk.STOCK_CLOSE, None, '<Control>W', 'Close window', self.on_close),
+                ('View', None, '_View'),
+                ('Expand', gtk.STOCK_ADD, '_Expand Timeline', 'plus', 'Expand timeline', self.on_expand),
+                ('Contract', gtk.STOCK_REMOVE, '_Contract Timeline', 'minus', 'Contract timeline', self.on_contract),
+                ('ZoomIn', gtk.STOCK_ZOOM_IN, None, '<Control>plus', 'Zoom in', self.on_zoom_in),
+                ('ZoomOut', gtk.STOCK_ZOOM_OUT, None, '<Control>minus', 'Zoom out', self.on_zoom_out),
+                ('ZoomFit', gtk.STOCK_ZOOM_FIT, 'Fit Width', None, 'Fit to width', self.on_zoom_fit),
+                ('Zoom100', gtk.STOCK_ZOOM_100, None, '<Control>0', 'Original size', self.on_zoom_100),
+        ))
+
+        actiongroup.add_toggle_actions((
+                ('ShowPID', None, 'Show _PID', None, 'Show process IDs', self.on_toggle_show_pid, app_options.show_pid),
+                ('ShowAll', None, 'Show _All', None, 'Show full command lines and arguments', self.on_toggle_show_all, app_options.show_all),
+        ))
+
+        uimanager.insert_action_group(actiongroup, 0)
+
+        menu_ui = '''
+        <ui>
+                <menubar name="MenuBar">
+                        <menu action="File">
+                                <menuitem action="Open"/>
+                                <menuitem action="Save"/>
+                                <separator/>
+                                <menuitem action="Close"/>
+                        </menu>
+                        <menu action="View">
+                                <menuitem action="Expand"/>
+                                <menuitem action="Contract"/>
+                                <separator/>
+                                <menuitem action="ZoomIn"/>
+                                <menuitem action="ZoomOut"/>
+                                <menuitem action="ZoomFit"/>
+                                <menuitem action="Zoom100"/>
+                                <separator/>
+                                <menuitem action="ShowPID"/>
+                                <menuitem action="ShowAll"/>
+                        </menu>
+                </menubar>
+        </ui>
+        '''
+        uimanager.add_ui_from_string(menu_ui)
+        menubar = uimanager.get_widget('/MenuBar')
+        main_vbox.pack_start(menubar, False, True, 0)
+
+        # Create tab notebook
         tab_page = gtk.Notebook()
-        tab_page.show()
-        window.add(tab_page)
+        self.tab_page = tab_page
+        main_vbox.pack_start(tab_page, True, True, 0)
 
         full_opts = RenderOptions(app_options)
         full_tree = PyBootchartShell(window, trace, full_opts, 1.0)
-        tab_page.append_page (full_tree, gtk.Label("Full tree"))
+        tab_page.append_page(full_tree, gtk.Label("Full tree"))
+        self.tabs = [full_tree]
 
-        if trace.kernel is not None and len (trace.kernel) > 2:
+        if trace.kernel is not None and len(trace.kernel) > 2:
             kernel_opts = RenderOptions(app_options)
             kernel_opts.cumulative = False
             kernel_opts.charts = False
             kernel_opts.kernel_only = True
             kernel_tree = PyBootchartShell(window, trace, kernel_opts, 5.0)
-            tab_page.append_page (kernel_tree, gtk.Label("Kernel boot"))
+            tab_page.append_page(kernel_tree, gtk.Label("Kernel boot"))
+            self.tabs.append(kernel_tree)
 
         full_tree.grab_focus(self)
-        self.show()
+
+        # Add Ctrl+Q as additional keybinding for close
+        self.connect('key-press-event', self.on_key_press)
+
+        self.show_all()
+
+    def on_key_press(self, widget, event):
+        # Handle Ctrl+Q as alias for Ctrl+W (Close)
+        if event.state & Gdk.ModifierType.CONTROL_MASK:
+            if event.keyval == Gdk.keyval_from_name('q') or event.keyval == Gdk.keyval_from_name('Q'):
+                self.destroy()
+                return True
+        return False
+
+    def get_current_tab(self):
+        page_num = self.tab_page.get_current_page()
+        return self.tabs[page_num]
+
+    def on_expand(self, action):
+        self.get_current_tab().widget2.on_expand(action)
+
+    def on_contract(self, action):
+        self.get_current_tab().widget2.on_contract(action)
+
+    def on_zoom_in(self, action):
+        self.get_current_tab().widget2.on_zoom_in(action)
+
+    def on_zoom_out(self, action):
+        self.get_current_tab().widget2.on_zoom_out(action)
+
+    def on_zoom_fit(self, action):
+        self.get_current_tab().widget2.on_zoom_fit(action)
+
+    def on_zoom_100(self, action):
+        self.get_current_tab().widget2.on_zoom_100(action)
+
+    def on_open(self, action):
+        dialog = gtk.FileChooserDialog(
+            title="Open Bootchart",
+            parent=self,
+            action=gtk.FileChooserAction.OPEN
+        )
+        dialog.add_buttons(
+            gtk.STOCK_CANCEL, gtk.ResponseType.CANCEL,
+            gtk.STOCK_OPEN, gtk.ResponseType.OK
+        )
+
+        # Add file filters
+        filter_tgz = gtk.FileFilter()
+        filter_tgz.set_name("Bootchart files")
+        filter_tgz.add_pattern("*.tgz")
+        filter_tgz.add_pattern("*.tar.gz")
+        dialog.add_filter(filter_tgz)
+
+        filter_all = gtk.FileFilter()
+        filter_all.set_name("All files")
+        filter_all.add_pattern("*")
+        dialog.add_filter(filter_all)
+
+        response = dialog.run()
+        if response == gtk.ResponseType.OK:
+            filename = dialog.get_filename()
+            dialog.destroy()
+            # Reload the window with new file
+            from . import parsing
+
+            class Writer:
+                def error(self, msg): print(msg)
+                def warn(self, msg): print(msg)
+                def info(self, msg): print(msg)
+                def status(self, msg): print(msg)
+
+            try:
+                writer = Writer()
+                trace = parsing.Trace(writer, [filename], self.app_options)
+                self.destroy()
+                win = PyBootchartWindow(trace, self.app_options)
+                win.connect('destroy', gtk.main_quit)
+                win.show()
+            except Exception as e:
+                error_dialog = gtk.MessageDialog(
+                    parent=self,
+                    flags=0,
+                    message_type=gtk.MessageType.ERROR,
+                    buttons=gtk.ButtonsType.OK,
+                    text="Error opening file"
+                )
+                error_dialog.format_secondary_text(str(e))
+                error_dialog.run()
+                error_dialog.destroy()
+        else:
+            dialog.destroy()
+
+    def on_save(self, action):
+        dialog = gtk.FileChooserDialog(
+            title="Save Bootchart",
+            parent=self,
+            action=gtk.FileChooserAction.SAVE
+        )
+        dialog.add_buttons(
+            gtk.STOCK_CANCEL, gtk.ResponseType.CANCEL,
+            gtk.STOCK_SAVE, gtk.ResponseType.OK
+        )
+        dialog.set_do_overwrite_confirmation(True)
+        dialog.set_current_name("bootchart.svg")
+
+        # Add file filters for different formats
+        filter_svg = gtk.FileFilter()
+        filter_svg.set_name("SVG (*.svg)")
+        filter_svg.add_pattern("*.svg")
+        filter_svg.ext = 'svg'
+        dialog.add_filter(filter_svg)
+
+        filter_png = gtk.FileFilter()
+        filter_png.set_name("PNG (*.png)")
+        filter_png.add_pattern("*.png")
+        filter_png.ext = 'png'
+        dialog.add_filter(filter_png)
+
+        filter_pdf = gtk.FileFilter()
+        filter_pdf.set_name("PDF (*.pdf)")
+        filter_pdf.add_pattern("*.pdf")
+        filter_pdf.ext = 'pdf'
+        dialog.add_filter(filter_pdf)
+
+        filter_all = gtk.FileFilter()
+        filter_all.set_name("All files")
+        filter_all.add_pattern("*")
+        dialog.add_filter(filter_all)
+
+        # Auto-update extension when filter changes
+        def on_filter_changed(dialog, param):
+            current_filter = dialog.get_filter()
+            if current_filter and current_filter != filter_all:
+                ext = getattr(current_filter, 'ext', None)
+                if ext:
+                    current_name = dialog.get_current_name()
+                    if current_name:
+                        # Strip existing extension and add new one
+                        base_name = current_name.rsplit('.', 1)[0] if '.' in current_name else current_name
+                        dialog.set_current_name(f"{base_name}.{ext}")
+
+        dialog.connect('notify::filter', on_filter_changed)
+
+        response = dialog.run()
+        if response == gtk.ResponseType.OK:
+            filename = dialog.get_filename()
+            dialog.destroy()
+
+            from . import batch
+            class Writer:
+                def error(self, msg): print(msg)
+                def warn(self, msg): print(msg)
+                def info(self, msg): print(msg)
+                def status(self, msg): print(msg)
+
+            try:
+                writer = Writer()
+                current_tab = self.get_current_tab()
+                batch.render(writer, self.trace, current_tab.widget2.options, filename)
+                info_dialog = gtk.MessageDialog(
+                    parent=self,
+                    flags=0,
+                    message_type=gtk.MessageType.INFO,
+                    buttons=gtk.ButtonsType.OK,
+                    text="File saved successfully"
+                )
+                info_dialog.format_secondary_text(f"Saved to {filename}")
+                info_dialog.run()
+                info_dialog.destroy()
+            except Exception as e:
+                error_dialog = gtk.MessageDialog(
+                    parent=self,
+                    flags=0,
+                    message_type=gtk.MessageType.ERROR,
+                    buttons=gtk.ButtonsType.OK,
+                    text="Error saving file"
+                )
+                error_dialog.format_secondary_text(str(e))
+                error_dialog.run()
+                error_dialog.destroy()
+        else:
+            dialog.destroy()
+
+    def on_close(self, action):
+        self.destroy()
+
+    def on_toggle_show_pid(self, action):
+        # Update all tabs (they will update app_options)
+        for tab in self.tabs:
+            tab.on_toggle_show_pid(action)
+
+    def on_toggle_show_all(self, action):
+        # Update all tabs (they will update app_options)
+        for tab in self.tabs:
+            tab.on_toggle_show_all(action)
 
 
 def show(trace, options):
     win = PyBootchartWindow(trace, options)
     win.connect('destroy', gtk.main_quit)
+
+    def signal_handler(sig, _):
+        print(f"\nReceived signal {sig}, closing...")
+        win.destroy()
+
+    signal.signal(signal.SIGINT, signal_handler)
+    GObject.timeout_add(100, lambda: True)
+
     gtk.main()
