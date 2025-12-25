@@ -116,6 +116,7 @@ class PyBootchartWidget(gtk.DrawingArea, gtk.Scrollable):
         self.emit("position-changed", self.x, self.y)
 
     ZOOM_INCREMENT = 1.25
+    WHEEL_ZOOM_INCREMENT = 1.1  # Smaller increment for mouse wheel zoom
 
     def zoom_image(self, zoom_ratio, auto_fit=False):
         """Zoom the image. If auto_fit is False, disable best_fit_mode."""
@@ -230,20 +231,21 @@ class PyBootchartWidget(gtk.DrawingArea, gtk.Scrollable):
     def on_area_scroll_event(self, area, event):
         if event.state & Gdk.ModifierType.CONTROL_MASK:
             # Handle both discrete and smooth scrolling for zoom
+            # Use smaller increment for mouse wheel to reduce sensitivity
             if event.direction == Gdk.ScrollDirection.UP:
-                self.zoom_image(self.zoom_ratio * self.ZOOM_INCREMENT)
+                self.zoom_image(self.zoom_ratio * self.WHEEL_ZOOM_INCREMENT)
                 return True
             elif event.direction == Gdk.ScrollDirection.DOWN:
-                self.zoom_image(self.zoom_ratio / self.ZOOM_INCREMENT)
+                self.zoom_image(self.zoom_ratio / self.WHEEL_ZOOM_INCREMENT)
                 return True
             elif event.direction == Gdk.ScrollDirection.SMOOTH:
                 # For smooth scrolling, check the deltas
                 success, delta_x, delta_y = event.get_scroll_deltas()
                 if success and delta_y != 0:
                     if delta_y < 0:
-                        self.zoom_image(self.zoom_ratio * self.ZOOM_INCREMENT)
+                        self.zoom_image(self.zoom_ratio * self.WHEEL_ZOOM_INCREMENT)
                     else:
-                        self.zoom_image(self.zoom_ratio / self.ZOOM_INCREMENT)
+                        self.zoom_image(self.zoom_ratio / self.WHEEL_ZOOM_INCREMENT)
                     return True
         else:
             # Handle regular scrolling by adjusting the scrollbar values
