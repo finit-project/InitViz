@@ -14,6 +14,7 @@
 #  along with pybootchartgui. If not, see <http://www.gnu.org/licenses/>.
 
 import signal
+import math
 import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk as gtk
@@ -452,6 +453,7 @@ class PyBootchartWindow(gtk.Window):
                 ('ShowPID', None, 'Show _PID', None, 'Show process IDs', self.on_toggle_show_pid, app_options.show_pid),
                 ('ShowAll', None, 'Show _All', None, 'Show full command lines and arguments', self.on_toggle_show_all, app_options.show_all),
                 ('ShowTabs', None, 'Show _Tabs', None, 'Show or hide tab bar', self.on_toggle_tabs, True),
+                ('ShowStatusbar', None, 'Show _Statusbar', None, 'Show or hide status bar', self.on_toggle_statusbar, True),
         ))
 
         uimanager.insert_action_group(actiongroup, 0)
@@ -476,7 +478,9 @@ class PyBootchartWindow(gtk.Window):
                                 <separator/>
                                 <menuitem action="ShowPID"/>
                                 <menuitem action="ShowAll"/>
+                                <separator/>
                                 <menuitem action="ShowTabs"/>
+                                <menuitem action="ShowStatusbar"/>
                         </menu>
                 </menubar>
         </ui>
@@ -489,6 +493,37 @@ class PyBootchartWindow(gtk.Window):
         tab_page = gtk.Notebook()
         self.tab_page = tab_page
         main_vbox.pack_start(tab_page, True, True, 0)
+
+        # Create status bar with sunken relief
+        statusbar_frame = gtk.Frame()
+        statusbar_frame.set_shadow_type(gtk.ShadowType.IN)
+        statusbar_frame.set_border_width(1)
+        statusbar = gtk.Statusbar()
+        # Reduce vertical padding to make status bar slimmer
+        statusbar.set_margin_top(0)
+        statusbar.set_margin_bottom(0)
+        # Get the label inside the statusbar and reduce its padding
+        for child in statusbar.get_children():
+            if isinstance(child, gtk.Box):
+                child.set_spacing(0)
+                for label_child in child.get_children():
+                    if isinstance(label_child, gtk.Label):
+                        label_child.set_margin_top(2)
+                        label_child.set_margin_bottom(2)
+        statusbar_frame.add(statusbar)
+        self.statusbar = statusbar
+        self.statusbar_frame = statusbar_frame
+        main_vbox.pack_start(statusbar_frame, False, True, 0)
+
+        # Calculate and display boot time
+        proc_tree = trace.proc_tree
+        if proc_tree.idle:
+            duration = proc_tree.idle
+        else:
+            duration = proc_tree.duration
+        dur = duration / 100.0
+        boot_time_str = '%02d:%05.2f' % (math.floor(dur/60), dur - 60 * math.floor(dur/60))
+        statusbar.push(0, "Boot time: %s" % boot_time_str)
 
         full_opts = RenderOptions(app_options)
         full_tree = PyBootchartShell(window, trace, full_opts, 1.0)
@@ -712,6 +747,13 @@ class PyBootchartWindow(gtk.Window):
     def on_toggle_tabs(self, action):
         # Toggle visibility of tab bar
         self.tab_page.set_show_tabs(action.get_active())
+
+    def on_toggle_statusbar(self, action):
+        # Toggle visibility of status bar
+        if action.get_active():
+            self.statusbar_frame.show()
+        else:
+            self.statusbar_frame.hide()
 
 
 def show(trace, options):
