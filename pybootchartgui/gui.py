@@ -71,6 +71,7 @@ class PyBootchartWidget(gtk.DrawingArea, gtk.Scrollable):
         self.zoom_ratio = 1.0
         self.xscale = xscale
         self.x, self.y = 0.0, 0.0
+        self.best_fit_mode = True  # Enable best fit by default
 
         self.chart_width, self.chart_height = draw.extents(self.options, self.xscale, self.trace)
         self.our_width, self.our_height = self.chart_width, self.chart_height
@@ -116,7 +117,13 @@ class PyBootchartWidget(gtk.DrawingArea, gtk.Scrollable):
 
     ZOOM_INCREMENT = 1.25
 
-    def zoom_image (self, zoom_ratio):
+    def zoom_image(self, zoom_ratio, auto_fit=False):
+        """Zoom the image. If auto_fit is False, disable best_fit_mode."""
+        if not auto_fit and self.best_fit_mode:
+            self.best_fit_mode = False
+            # Update the menu checkbox
+            if hasattr(self, 'parent_window') and self.parent_window:
+                self.parent_window.update_best_fit_action(False)
         self.zoom_ratio = zoom_ratio
         self._set_scroll_adjustments()
         self.queue_draw()
@@ -127,12 +134,37 @@ class PyBootchartWidget(gtk.DrawingArea, gtk.Scrollable):
         self.x = 0
         self.position_changed()
 
+    def zoom_to_best_fit(self, rect):
+        """Zoom to best fit - fits width for readability, allows vertical scrolling"""
+        if rect.width <= 0 or rect.height <= 0:
+            return
+
+        # Only fit to width - bootcharts are vertical documents meant to be scrolled
+        # Fitting to height makes text unreadable
+        # The default xscale of 3.0 provides enough width for headers and labels
+        zoom_ratio = float(rect.width) / float(self.chart_width)
+
+        # Apply the zoom
+        self.zoom_image(zoom_ratio, auto_fit=True)
+
+        # Reset to top-left (but horizontal scrolling will be available if content is wider)
+        self.x = 0
+        self.y = 0
+        self.position_changed()
+
     def set_xscale(self, xscale):
         old_mid_x = self.x + self.hadj.get_page_size() / 2
         self.xscale = xscale
         self.chart_width, self.chart_height = draw.extents(self.options, self.xscale, self.trace)
         new_x = old_mid_x
-        self.zoom_image (self.zoom_ratio)
+        # Don't disable best fit for timeline expansion/contraction
+        was_best_fit = self.best_fit_mode
+        self.zoom_image(self.zoom_ratio)
+        self.best_fit_mode = was_best_fit
+        # If best fit is enabled, re-apply it with new chart dimensions
+        if self.best_fit_mode:
+            allocation = self.get_allocation()
+            self.zoom_to_best_fit(allocation)
 
     def on_expand(self, action):
         self.set_xscale (self.xscale * 1.5)
@@ -147,6 +179,11 @@ class PyBootchartWidget(gtk.DrawingArea, gtk.Scrollable):
         self.zoom_image(self.zoom_ratio / self.ZOOM_INCREMENT)
 
     def on_zoom_fit(self, action):
+        if self.best_fit_mode:
+            self.best_fit_mode = False  # Disable best fit when manually fitting
+            # Update the menu checkbox
+            if hasattr(self, 'parent_window') and self.parent_window:
+                self.parent_window.update_best_fit_action(False)
         self.zoom_to_rect(self.get_allocation())
 
     def on_zoom_100(self, action):
@@ -260,6 +297,11 @@ class PyBootchartWidget(gtk.DrawingArea, gtk.Scrollable):
             self.our_width = allocation.width
             self.our_height = allocation.height
 
+            # If best fit mode is enabled, auto-fit on resize
+            if self.best_fit_mode:
+                self.zoom_to_best_fit(allocation)
+                # Don't return - still need to configure adjustments below
+
             # In GTK adjustments:
             # - upper = total content size
             # - page_size = visible window size
@@ -351,6 +393,7 @@ class PyBootchartShell(gtk.VBox):
         self.window = window
         self.trace = trace
         self.widget2 = PyBootchartWidget(trace, options, xscale)
+        self.widget2.parent_window = window  # Store window reference for updating actions
 
         # Scrolled window
         scrolled = gtk.ScrolledWindow(self.widget2.hadj, self.widget2.vadj)
@@ -375,6 +418,13 @@ class PyBootchartShell(gtk.VBox):
         self.widget2.chart_width, self.widget2.chart_height = draw.extents(self.widget2.options, self.widget2.xscale, self.trace)
         self.widget2._set_scroll_adjustments()
         self.widget2.queue_draw()
+
+    def on_toggle_best_fit(self, action):
+        self.widget2.best_fit_mode = action.get_active()
+        if self.widget2.best_fit_mode:
+            # Immediately apply best fit when enabled
+            allocation = self.widget2.get_allocation()
+            self.widget2.zoom_to_best_fit(allocation)
 
 
 class PyBootchartWindow(gtk.Window):
@@ -415,6 +465,7 @@ class PyBootchartWindow(gtk.Window):
         ))
 
         actiongroup.add_toggle_actions((
+                ('BestFit', None, '_Best Fit', None, 'Automatically fit content to window', self.on_toggle_best_fit, True),
                 ('ShowPID', None, 'Show _PID', None, 'Show process IDs', self.on_toggle_show_pid, app_options.show_pid),
                 ('ShowAll', None, 'Show _All', None, 'Show full command lines and arguments', self.on_toggle_show_all, app_options.show_all),
                 ('ShowTabs', None, 'Show _Tabs', None, 'Show or hide tab bar', self.on_toggle_tabs, True),
@@ -441,6 +492,7 @@ class PyBootchartWindow(gtk.Window):
                                 <menuitem action="ZoomOut"/>
                                 <menuitem action="ZoomFit"/>
                                 <menuitem action="Zoom100"/>
+                                <menuitem action="BestFit"/>
                                 <separator/>
                                 <menuitem action="ShowPID"/>
                                 <menuitem action="ShowAll"/>
@@ -511,7 +563,7 @@ class PyBootchartWindow(gtk.Window):
         statusbar.push(0, "Boot time: %s" % boot_time_str)
 
         full_opts = RenderOptions(app_options)
-        full_tree = PyBootchartShell(window, trace, full_opts, 1.0)
+        full_tree = PyBootchartShell(window, trace, full_opts, 3.0)
         tab_page.append_page(full_tree, gtk.Label("Full tree"))
         self.tabs = [full_tree]
 
@@ -729,6 +781,11 @@ class PyBootchartWindow(gtk.Window):
         for tab in self.tabs:
             tab.on_toggle_show_all(action)
 
+    def on_toggle_best_fit(self, action):
+        # Update all tabs
+        for tab in self.tabs:
+            tab.on_toggle_best_fit(action)
+
     def on_toggle_tabs(self, action):
         # Toggle visibility of tab bar
         self.tab_page.set_show_tabs(action.get_active())
@@ -746,6 +803,12 @@ class PyBootchartWindow(gtk.Window):
             self.statusbar_frame.show()
         else:
             self.statusbar_frame.hide()
+
+    def update_best_fit_action(self, active):
+        """Update the Best Fit menu checkbox state"""
+        action = self.uimanager.get_action('/MenuBar/View/BestFit')
+        if action:
+            action.set_active(active)
 
 
 def show(trace, options):
