@@ -72,6 +72,8 @@ class PyBootchartWidget(gtk.DrawingArea, gtk.Scrollable):
         self.xscale = xscale
         self.x, self.y = 0.0, 0.0
         self.best_fit_mode = True  # Enable best fit by default
+        self.prevmousex = None
+        self.prevmousey = None
 
         self.chart_width, self.chart_height = draw.extents(self.options, self.xscale, self.trace)
         self.our_width, self.our_height = self.chart_width, self.chart_height
@@ -279,6 +281,9 @@ class PyBootchartWidget(gtk.DrawingArea, gtk.Scrollable):
     def on_area_motion_notify(self, area, event):
         state = event.state
         if state & Gdk.ModifierType.BUTTON2_MASK or state & Gdk.ModifierType.BUTTON1_MASK:
+            # Only pan if we have previous mouse positions
+            if self.prevmousex is None or self.prevmousey is None:
+                return True
             x, y = int(event.x), int(event.y)
             # pan the image
             self.x += (self.prevmousex - x)/self.zoom_ratio
