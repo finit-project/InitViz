@@ -15,6 +15,7 @@
 
 
 import cairo
+import functools
 import math
 import re
 import random
