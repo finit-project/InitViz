@@ -345,19 +345,6 @@ class PyBootchartWidget(gtk.DrawingArea, gtk.Scrollable):
         self.vadj.set_value(y * self.zoom_ratio)
 
 class PyBootchartShell(gtk.VBox):
-    ui = '''
-    <ui>
-            <toolbar name="ToolBar">
-                    <toolitem action="Expand"/>
-                    <toolitem action="Contract"/>
-                    <separator/>
-                    <toolitem action="ZoomIn"/>
-                    <toolitem action="ZoomOut"/>
-                    <toolitem action="ZoomFit"/>
-                    <toolitem action="Zoom100"/>
-            </toolbar>
-    </ui>
-    '''
     def __init__(self, window, trace, options, xscale):
         gtk.VBox.__init__(self)
 
@@ -365,34 +352,12 @@ class PyBootchartShell(gtk.VBox):
         self.trace = trace
         self.widget2 = PyBootchartWidget(trace, options, xscale)
 
-        uimanager = self.uimanager = gtk.UIManager()
-        accelgroup = uimanager.get_accel_group()
-        window.add_accel_group(accelgroup)
-
-        actiongroup = gtk.ActionGroup('Actions')
-        self.actiongroup = actiongroup
-        actiongroup.add_actions((
-                ('Expand', gtk.STOCK_ADD, '_Expand Timeline', None, 'Expand timeline', self.widget2.on_expand),
-                ('Contract', gtk.STOCK_REMOVE, '_Contract Timeline', None, 'Contract timeline', self.widget2.on_contract),
-                ('ZoomIn', gtk.STOCK_ZOOM_IN, None, None, 'Zoom in', self.widget2.on_zoom_in),
-                ('ZoomOut', gtk.STOCK_ZOOM_OUT, None, None, 'Zoom out', self.widget2.on_zoom_out),
-                ('ZoomFit', gtk.STOCK_ZOOM_FIT, 'Fit Width', None, 'Fit to width', self.widget2.on_zoom_fit),
-                ('Zoom100', gtk.STOCK_ZOOM_100, None, None, 'Original size', self.widget2.on_zoom_100),
-        ))
-
-        uimanager.insert_action_group(actiongroup, 0)
-        uimanager.add_ui_from_string(self.ui)
-
         # Scrolled window
         scrolled = gtk.ScrolledWindow(self.widget2.hadj, self.widget2.vadj)
         scrolled.add(self.widget2)
         scrolled.set_policy(gtk.PolicyType.ALWAYS, gtk.PolicyType.ALWAYS)
 
-        # Get toolbar from UIManager
-        toolbar = uimanager.get_widget('/ToolBar')
-
-        # Pack widgets: toolbar, scrolled area
-        self.pack_start(toolbar, False, True, 0)
+        # Pack scrolled area only (toolbar is now in PyBootchartWindow)
         self.pack_start(scrolled, True, True, 0)
         self.show_all()
 
@@ -453,6 +418,7 @@ class PyBootchartWindow(gtk.Window):
                 ('ShowPID', None, 'Show _PID', None, 'Show process IDs', self.on_toggle_show_pid, app_options.show_pid),
                 ('ShowAll', None, 'Show _All', None, 'Show full command lines and arguments', self.on_toggle_show_all, app_options.show_all),
                 ('ShowTabs', None, 'Show _Tabs', None, 'Show or hide tab bar', self.on_toggle_tabs, True),
+                ('ShowToolbar', None, 'Show _Toolbar', None, 'Show or hide toolbar', self.on_toggle_toolbar, True),
                 ('ShowStatusbar', None, 'Show _Statusbar', None, 'Show or hide status bar', self.on_toggle_statusbar, True),
         ))
 
@@ -480,14 +446,33 @@ class PyBootchartWindow(gtk.Window):
                                 <menuitem action="ShowAll"/>
                                 <separator/>
                                 <menuitem action="ShowTabs"/>
+                                <menuitem action="ShowToolbar"/>
                                 <menuitem action="ShowStatusbar"/>
                         </menu>
                 </menubar>
+                <toolbar name="ToolBar">
+                        <toolitem action="Open"/>
+                        <toolitem action="Save"/>
+                        <separator/>
+                        <toolitem action="ZoomIn"/>
+                        <toolitem action="ZoomOut"/>
+                        <toolitem action="ZoomFit"/>
+                        <toolitem action="Zoom100"/>
+                        <separator/>
+                        <toolitem action="Expand"/>
+                        <toolitem action="Contract"/>
+                </toolbar>
         </ui>
         '''
         uimanager.add_ui_from_string(menu_ui)
         menubar = uimanager.get_widget('/MenuBar')
         main_vbox.pack_start(menubar, False, True, 0)
+
+        # Create toolbar
+        toolbar = uimanager.get_widget('/ToolBar')
+        toolbar.set_style(gtk.ToolbarStyle.ICONS)
+        self.toolbar = toolbar
+        main_vbox.pack_start(toolbar, False, True, 0)
 
         # Create tab notebook
         tab_page = gtk.Notebook()
@@ -747,6 +732,13 @@ class PyBootchartWindow(gtk.Window):
     def on_toggle_tabs(self, action):
         # Toggle visibility of tab bar
         self.tab_page.set_show_tabs(action.get_active())
+
+    def on_toggle_toolbar(self, action):
+        # Toggle visibility of toolbar
+        if action.get_active():
+            self.toolbar.show()
+        else:
+            self.toolbar.hide()
 
     def on_toggle_statusbar(self, action):
         # Toggle visibility of status bar
