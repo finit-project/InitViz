@@ -4,9 +4,9 @@ import unittest
 
 sys.path.insert(0, os.getcwd())
 
-import pybootchartgui.parsing as parsing
-import pybootchartgui.process_tree as process_tree
-import pybootchartgui.main as main
+import initviz.parsing as parsing
+import initviz.process_tree as process_tree
+import initviz.main as main
 
 if sys.version_info >= (3, 0):
     long = int

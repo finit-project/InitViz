@@ -153,9 +153,9 @@ stop()
 	rm -Rf $tmpdir
 
 	# Render the chart if configured (and the renderer is installed)
-	if [ "$AUTO_RENDER" = "yes" -a -x /usr/bin/pybootchartgui ]; then
+	if [ "$AUTO_RENDER" = "yes" -a -x /usr/bin/initviz ]; then
 		cd $AUTO_RENDER_DIR
-		/usr/bin/pybootchartgui -o "$AUTO_RENDER_DIR"/bootchart.$AUTO_RENDER_FORMAT -f $AUTO_RENDER_FORMAT "$BOOTLOG_DEST"
+		/usr/bin/initviz -o "$AUTO_RENDER_DIR"/bootchart.$AUTO_RENDER_FORMAT -f $AUTO_RENDER_FORMAT "$BOOTLOG_DEST"
 	fi
 
 	# execute custom post-collect (and possibly post-render) command (which could get params from the conf file by itself if needed)

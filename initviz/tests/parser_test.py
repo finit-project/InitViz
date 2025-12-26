@@ -4,8 +4,8 @@ import unittest
 
 sys.path.insert(0, os.getcwd())
 
-import pybootchartgui.parsing as parsing
-import pybootchartgui.main as main
+import initviz.parsing as parsing
+import initviz.main as main
 
 debug = False
 

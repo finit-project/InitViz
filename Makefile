@@ -50,7 +50,7 @@ all: \
 	bootchart2.service \
 	bootchart2-done.service \
 	bootchart2-done.timer \
-	pybootchartgui/main.py
+	initviz/main.py
 
 %.o:%.c
 	$(CC) $(CFLAGS) $(LDFLAGS) -pthread \
@@ -84,14 +84,14 @@ bootchartd: bootchartd.in
 bootchart-collector: $(COLLECTOR)
 	$(CC) $(CFLAGS) $(LDFLAGS) -pthread -Icollector -o $@ $^
 
-pybootchartgui/main.py: pybootchartgui/main.py.in
+initviz/main.py: initviz/main.py.in
 	$(substitute_variables) $^ > $@
 
-py-install-compile: pybootchartgui/main.py
-	install -d $(DESTDIR)$(PY_SITEDIR)/pybootchartgui
-	cp pybootchartgui/*.py $(DESTDIR)$(PY_SITEDIR)/pybootchartgui
-	install -D -m 755 pybootchartgui.py $(DESTDIR)$(BINDIR)/pybootchartgui
-	[ -z "$(NO_PYTHON_COMPILE)" ] && ( cd $(DESTDIR)$(PY_SITEDIR)/pybootchartgui ; \
+py-install-compile: initviz/main.py
+	install -d $(DESTDIR)$(PY_SITEDIR)/initviz
+	cp initviz/*.py $(DESTDIR)$(PY_SITEDIR)/initviz
+	install -D -m 755 initviz.py $(DESTDIR)$(BINDIR)/initviz
+	[ -z "$(NO_PYTHON_COMPILE)" ] && ( cd $(DESTDIR)$(PY_SITEDIR)/initviz ; \
 		$(PYTHON) $(PY_LIBDIR)/py_compile.py *.py ; \
 		PYTHONOPTIMIZE=1 $(PYTHON) $(PY_LIBDIR)/py_compile.py *.py ); :
 
@@ -109,7 +109,7 @@ install-docs:
 	mkdir -p $(DESTDIR)$(MANDIR)
 	gzip -c bootchart2.1 > $(DESTDIR)$(MANDIR)/bootchart2.1.gz
 	gzip -c bootchartd.1 > $(DESTDIR)$(MANDIR)/$(PROGRAM_PREFIX)bootchartd$(PROGRAM_SUFFIX).1.gz
-	gzip -c pybootchartgui.1 > $(DESTDIR)$(MANDIR)/pybootchartgui.1.gz
+	gzip -c initviz.1 > $(DESTDIR)$(MANDIR)/initviz.1.gz
 
 install-service:
 	mkdir -p $(DESTDIR)$(SYSTEMD_UNIT_DIR)
@@ -122,7 +122,7 @@ install: all py-install-compile install-collector install-service install-docs
 
 clean:
 	-rm -f bootchart-collector bootchart-collector-dynamic \
-	collector/*.o pybootchartgui/main.py bootchartd \
+	collector/*.o initviz/main.py bootchartd \
 	bootchart2-done.service bootchart2-done.timer bootchart2.service
 
 dist:
@@ -130,8 +130,8 @@ dist:
 	git archive --prefix=$(PKG_NAME)-$(VER)/ --format=tar $$COMMIT_HASH \
 		| bzip2 -f > $(PKG_TARBALL)
 
-test: pybootchartgui/tests
-	for f in pybootchartgui/tests/*.py;\
+test: initviz/tests
+	for f in initviz/tests/*.py;\
 	do \
 		echo "Testing $$f...";\
 		$(PYTHON) "$$f";\

@@ -1,17 +1,17 @@
-#  This file is part of pybootchartgui.
+#  This file is part of initviz.
 
-#  pybootchartgui is free software: you can redistribute it and/or modify
+#  initviz is free software: you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
 #  the Free Software Foundation, either version 3 of the License, or
 #  (at your option) any later version.
 
-#  pybootchartgui is distributed in the hope that it will be useful,
+#  initviz is distributed in the hope that it will be useful,
 #  but WITHOUT ANY WARRANTY; without even the implied warranty of
 #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #  GNU General Public License for more details.
 
 #  You should have received a copy of the GNU General Public License
-#  along with pybootchartgui. If not, see <http://www.gnu.org/licenses/>.
+#  along with initviz. If not, see <http://www.gnu.org/licenses/>.
 
 import signal
 import math
@@ -470,7 +470,7 @@ class PyBootchartWindow(gtk.Window):
                 ('ZoomFit', gtk.STOCK_ZOOM_FIT, 'Fit Width', None, 'Fit to width', self.on_zoom_fit),
                 ('Zoom100', gtk.STOCK_ZOOM_100, None, '<Control>0', 'Original size', self.on_zoom_100),
                 ('Help', None, '_Help'),
-                ('About', gtk.STOCK_ABOUT, None, None, 'About Bootchart', self.on_about),
+                ('About', gtk.STOCK_ABOUT, None, None, 'About InitViz', self.on_about),
         ))
 
         actiongroup.add_toggle_actions((
@@ -825,17 +825,22 @@ class PyBootchartWindow(gtk.Window):
     def on_about(self, action):
         about = gtk.AboutDialog()
         about.set_transient_for(self)
-        about.set_program_name("Bootchart2")
+        about.set_program_name("InitViz")
         about.set_version("0.14.9")
-        about.set_comments("Boot process performance visualization tool")
-        about.set_copyright("Copyright © 2009-2010 Novell, Inc.\nCopyright © Contributors")
+        about.set_comments("Boot and init process performance visualization tool\nForked from bootchart2")
+        about.set_copyright("Copyright © 2009-2010 Novell, Inc.\nCopyright © Riccardo Magliocchetti and contributors")
         about.set_license_type(gtk.License.GPL_3_0)
-        about.set_website("https://github.com/xrmx/bootchart")
-        about.set_website_label("Bootchart2 on GitHub")
+        about.set_website("https://github.com/finit-project/InitViz")
+        about.set_website_label("InitViz on GitHub")
         about.set_authors([
-            "Michael Meeks",
             "Riccardo Magliocchetti",
-            "And contributors"
+            "Michael Meeks",
+            "Anders Norgaard",
+            "Henning Niss",
+            "Scott James Remnant",
+            "Ziga Mahkovec",
+            "Joachim Wiberg",
+            "And other contributors"
         ])
         about.set_logo_icon_name("utilities-system-monitor")
 
