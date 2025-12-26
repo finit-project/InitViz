@@ -78,7 +78,7 @@ initviz/main.py: initviz/main.py.in
 
 py-install-compile: initviz/main.py
 	install -d $(DESTDIR)$(PY_SITEDIR)/initviz
-	cp initviz/*.py $(DESTDIR)$(PY_SITEDIR)/initviz
+	find initviz -maxdepth 1 -name "*.py" -exec install -m 644 {} $(DESTDIR)$(PY_SITEDIR)/initviz/ \;
 	install -D -m 755 initviz.py $(DESTDIR)$(BINDIR)/initviz
 	[ -z "$(NO_PYTHON_COMPILE)" ] && ( cd $(DESTDIR)$(PY_SITEDIR)/initviz ; \
 		$(PYTHON) $(PY_LIBDIR)/py_compile.py *.py ; \
@@ -105,6 +105,13 @@ clean:
 	-rm -f bootchart-collector bootchart-collector-dynamic \
 	collector/*.o initviz/main.py bootchartd
 
+distclean: clean
+	-find . -name __pycache__ -type d -exec rm -rf {} +
+	-find . -name "*.o" -delete
+	-find . -name "*~" -delete
+	-find . -name "*.pyc" -delete
+	-find . -name "*.pyo" -delete
+
 dist:
 	COMMIT_HASH=`git show-ref -s -h | head -n 1` ; \
 	git archive --prefix=$(PKG_NAME)-$(VER)/ --format=tar $$COMMIT_HASH \
@@ -116,3 +123,5 @@ test: initviz/tests
 		echo "Testing $$f...";\
 		$(PYTHON) "$$f";\
 	done
+
+.PHONY: all clean distclean install install-chroot install-collector install-docs dist test
