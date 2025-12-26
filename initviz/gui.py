@@ -25,6 +25,7 @@ from gi.repository import GObject
 
 from . import draw
 from .draw import RenderOptions
+from . import get_version
 
 class PyBootchartWidget(gtk.DrawingArea, gtk.Scrollable):
     __gsignals__ = {
@@ -826,7 +827,7 @@ class PyBootchartWindow(gtk.Window):
         about = gtk.AboutDialog()
         about.set_transient_for(self)
         about.set_program_name("InitViz")
-        about.set_version("0.14.9")
+        about.set_version(get_version())
         about.set_comments("Boot and init process performance visualization tool\nForked from bootchart2")
         about.set_copyright("Copyright © 2009-2010 Novell, Inc.\nCopyright © Riccardo Magliocchetti and contributors")
         about.set_license_type(gtk.License.GPL_3_0)
