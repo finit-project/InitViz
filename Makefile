@@ -1,4 +1,4 @@
-VER            = 0.14.9
+VER            = 1.0.0-rc1
 PKG_NAME       = initviz
 PKG_TARBALL    = $(PKG_NAME)-$(VER).tar.gz
 

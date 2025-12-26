@@ -4,8 +4,8 @@ Change Log
 All relevant changes are documented in this file.
 
 
-[UNRELEASED][] - InitViz
-------------------------
+[1.0.0][UNRELEASED] - 2025-12-xx
+---------------------------
 
 InitViz is a fork of [bootchart2][] by Riccardo Magliocchetti.
 
@@ -352,7 +352,8 @@ Administrative snafu version; pull before pushing...
 
 
 [bootchart2]:    https://github.com/xrmx/bootchart
-[UNRELEASED]:    https://github.com/finit-project/InitViz/compare/v0.14.9...HEAD
+[UNRELEASED]:    https://github.com/finit-project/InitViz/compare/0.14.9...HEAD
+[1.0.0]:         https://github.com/finit-project/InitViz/compare/0.14.9...1.0.0
 [0.14.9]:        https://github.com/xrmx/bootchart/releases/tag/0.14.9
 [0.14.8]:        https://github.com/xrmx/bootchart/releases/tag/0.14.8
 [0.14.7]:        https://github.com/xrmx/bootchart/releases/tag/0.14.7
