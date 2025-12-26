@@ -35,8 +35,6 @@ endif
 endif
 PY_SITEDIR ?= $(PY_LIBDIR)/site-packages
 LIBC_A_PATH = /usr$(LIBDIR)
-# Always lib, even on systems that otherwise use lib64
-SYSTEMD_UNIT_DIR = $(EARLY_PREFIX)/lib/systemd/system
 COLLECTOR = \
 	collector/collector.o \
 	collector/output.o \
@@ -47,9 +45,6 @@ COLLECTOR = \
 all: \
 	bootchart-collector \
 	bootchartd \
-	bootchart2.service \
-	bootchart2-done.service \
-	bootchart2-done.timer \
 	initviz/main.py
 
 %.o:%.c
@@ -73,12 +68,6 @@ substitute_variables = \
 		-e "s:@VER@:$(VER):"
 
 bootchartd: bootchartd.in
-	$(substitute_variables) $^ > $@
-
-%.service: %.service.in
-	$(substitute_variables) $^ > $@
-
-%.timer: %.timer.in
 	$(substitute_variables) $^ > $@
 
 bootchart-collector: $(COLLECTOR)
@@ -111,19 +100,11 @@ install-docs:
 	gzip -c bootchartd.1 > $(DESTDIR)$(MANDIR)/$(PROGRAM_PREFIX)bootchartd$(PROGRAM_SUFFIX).1.gz
 	gzip -c initviz.1 > $(DESTDIR)$(MANDIR)/initviz.1.gz
 
-install-service:
-	mkdir -p $(DESTDIR)$(SYSTEMD_UNIT_DIR)
-	install -m 0644 bootchart2.service \
-	       bootchart2-done.service \
-	       bootchart2-done.timer \
-	       $(DESTDIR)$(SYSTEMD_UNIT_DIR)
-
-install: all py-install-compile install-collector install-service install-docs
+install: all py-install-compile install-collector install-docs
 
 clean:
 	-rm -f bootchart-collector bootchart-collector-dynamic \
-	collector/*.o initviz/main.py bootchartd \
-	bootchart2-done.service bootchart2-done.timer bootchart2.service
+	collector/*.o initviz/main.py bootchartd
 
 dist:
 	COMMIT_HASH=`git show-ref -s -h | head -n 1` ; \

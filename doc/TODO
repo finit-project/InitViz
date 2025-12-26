@@ -1,3 +1,6 @@
+NOTE: This is a legacy TODO file from the bootchart2 project that InitViz
+was forked from. It is kept for historical reference only.
+
 ** Bugs:
 
 * FIXME: are we merging / glupping threads properly ?

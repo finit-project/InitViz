@@ -1,6 +1,10 @@
 			    bootchart2
 			   ------------
 
+NOTE: This is a legacy README from the bootchart2 project that InitViz
+was forked from. For current information, see README.md in the parent
+directory or visit https://github.com/finit-project/InitViz
+
 	bootchart2 was created from the fusion of three separate
 pieces of work. First - the original bootchart: a shell script, and a
 Java visualisation tool written by Ziga Mahkovec. Some of the original
@@ -32,11 +36,11 @@ rdinitrd=/sbin/bootchartd to the kernel command-line.
 
 	To make bootchart2 work best, please ensure your kernel is
 configured with CONFIG_PROC_EVENTS=y and CONFIG_TASKSTATS=y, without
-these we are slower, less accurate, and produce an uglier task 
+these we are slower, less accurate, and produce an uglier task
 hierarchy.
 
 	If you want to start bootchart2 in a dracut (version >= 008)
-initramfs, you have to change "init=/sbin/bootchartd" to 
+initramfs, you have to change "init=/sbin/bootchartd" to
 "rdinit=/sbin/bootchartd" and regenerate the initramfs with bootchart support
 with "# dracut -f -a bootchart".
 
