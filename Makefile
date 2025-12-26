@@ -1,6 +1,6 @@
 VER=0.14.9
-PKG_NAME=bootchart2
-PKG_TARBALL=$(PKG_NAME)-$(VER).tar.bz2
+PKG_NAME=initviz
+PKG_TARBALL=$(PKG_NAME)-$(VER).tar.gz
 
 CROSS_COMPILE ?= $(CONFIG_CROSS_COMPILE:"%"=%)
 
@@ -20,7 +20,7 @@ EARLY_PREFIX ?=
 
 BINDIR ?= /usr/bin
 PYTHON ?= python3
-DOCDIR ?= /usr/share/docs/$(PROGRAM_PREFIX)bootchart$(PROGRAM_SUFFIX)
+DOCDIR ?= /usr/share/doc/initviz
 MANDIR ?= /usr/share/man/man1
 # never contains /usr; typically /lib, /lib64 or e.g. /lib/x86_64-linux-gnu
 LIBDIR ?= /lib
@@ -104,8 +104,8 @@ install-collector: all install-chroot
 	install -m 755 -D bootchart-collector $(DESTDIR)$(PKGLIBDIR)/$(PROGRAM_PREFIX)bootchart$(PROGRAM_SUFFIX)-collector
 
 install-docs:
-	install -m 644 -D README $(DESTDIR)$(DOCDIR)/README
-	install -m 644 -D README.pybootchart $(DESTDIR)$(DOCDIR)/README.pybootchart
+	install -m 644 -D README.md $(DESTDIR)$(DOCDIR)/README.md
+	install -m 644 -D initviz.png $(DESTDIR)$(DOCDIR)/initviz.png
 	mkdir -p $(DESTDIR)$(MANDIR)
 	gzip -c bootchart2.1 > $(DESTDIR)$(MANDIR)/bootchart2.1.gz
 	gzip -c bootchartd.1 > $(DESTDIR)$(MANDIR)/$(PROGRAM_PREFIX)bootchartd$(PROGRAM_SUFFIX).1.gz
@@ -128,7 +128,7 @@ clean:
 dist:
 	COMMIT_HASH=`git show-ref -s -h | head -n 1` ; \
 	git archive --prefix=$(PKG_NAME)-$(VER)/ --format=tar $$COMMIT_HASH \
-		| bzip2 -f > $(PKG_TARBALL)
+		| gzip -f > $(PKG_TARBALL)
 
 test: initviz/tests
 	for f in initviz/tests/*.py;\

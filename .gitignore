@@ -3,7 +3,7 @@
 *~
 bootchart-collector
 *.pyo
-*.tar.bz2
+*.tar.gz
 *.orig
 *.rej
 no
