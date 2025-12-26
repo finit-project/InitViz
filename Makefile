@@ -96,9 +96,8 @@ install-docs:
 	install -m 644 -D README.md $(DESTDIR)$(DOCDIR)/README.md
 	install -m 644 -D initviz.png $(DESTDIR)$(DOCDIR)/initviz.png
 	mkdir -p $(DESTDIR)$(MANDIR)
-	gzip -c bootchart2.1 > $(DESTDIR)$(MANDIR)/bootchart2.1.gz
-	gzip -c bootchartd.1 > $(DESTDIR)$(MANDIR)/$(PROGRAM_PREFIX)bootchartd$(PROGRAM_SUFFIX).1.gz
-	gzip -c initviz.1 > $(DESTDIR)$(MANDIR)/initviz.1.gz
+	gzip -c man/bootchartd.1 > $(DESTDIR)$(MANDIR)/$(PROGRAM_PREFIX)bootchartd$(PROGRAM_SUFFIX).1.gz
+	gzip -c man/initviz.1 > $(DESTDIR)$(MANDIR)/initviz.1.gz
 
 install: all py-install-compile install-collector install-docs
 

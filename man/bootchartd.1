@@ -1,0 +1,65 @@
+.Dd December 26, 2025
+.Dt BOOTCHARTD 1
+.Os
+.Sh NAME
+.Nm bootchartd
+.Nd collects data from boot process
+.Sh SYNOPSIS
+.Nm
+.Cm start | stop | wait
+.Sh DESCRIPTION
+.Nm
+is a daemon that collects data from the boot process.
+It can be run as init (via kernel command line) or started manually to
+profile a running system.
+Use
+.Xr initviz 1
+to visualize the collected data.
+.Sh COMMANDS
+.Bl -tag -width Ds
+.It Cm start
+Start the daemon manually to profile a running system.
+.It Cm stop
+Stop the daemon and save collected data to
+.Pa /var/log/bootchart.tgz .
+.It Cm wait
+Wait for boot to complete (used internally).
+.El
+.Sh FILES
+.Bl -tag -width "/var/log/bootchart.tgz" -compact
+.It Pa /etc/bootchartd.conf
+Configuration file.
+.It Pa /sbin/bootchartd
+The daemon script.
+.It Pa /var/log/bootchart.tgz
+Default output location.
+.El
+.Sh EXAMPLES
+To profile boot, add to kernel command line:
+.Bd -literal -offset indent
+init=/sbin/bootchartd initcall_debug printk.time=y
+.Ed
+.Pp
+To profile a running system:
+.Bd -literal -offset indent
+bootchartd start
+# ... do something ...
+bootchartd stop
+initviz -i /var/log/bootchart.tgz
+.Ed
+.Sh SEE ALSO
+.Xr initviz 1
+.Sh AUTHORS
+.Nm
+is part of InitViz, based on bootchart2.
+.Pp
+Original bootchart2 authors:
+.An Michael Meeks ,
+.An Riccardo Magliocchetti ,
+.An Scott James Remnant ,
+.An Anders Norgaard ,
+.An Henning Niss ,
+and others.
+.Pp
+This manual page was adapted from the original by
+.An Francesca Ciceri .

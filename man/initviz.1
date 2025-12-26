@@ -1,0 +1,98 @@
+.Dd December 26, 2025
+.Dt INITVIZ 1
+.Os
+.Sh NAME
+.Nm initviz
+.Nd viewer for init and boot process performance analysis results
+.Sh SYNOPSIS
+.Nm
+.Op Fl hiqntv
+.Op Fl f Ar format
+.Op Fl o Ar path
+.Op Fl -crop-after Ar process
+.Op Fl -annotate Ar process
+.Op Fl -annotate-file Ar filename
+.Ar file ...
+.Sh DESCRIPTION
+.Nm
+is a graphical program to view the data recorded by
+.Xr bootchartd 1 .
+It can render charts interactively or export them to PNG, SVG, or PDF formats.
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl h , Fl -help
+Show summary of options.
+.It Fl -version
+Show version of program.
+.It Fl i , Fl -interactive
+Start in interactive mode with GUI.
+.It Fl f Ar format , Fl -format Ns = Ns Ar format
+Image format: png, svg, or pdf (default: png).
+.It Fl o Ar path , Fl -output Ns = Ns Ar path
+Output path (file or directory) where charts are stored.
+.It Fl n , Fl -no-prune
+Do not prune the process tree.
+.It Fl q , Fl -quiet
+Suppress informational messages.
+.It Fl t , Fl -boot-time
+Only display the boot time in text format (stdout).
+.It Fl -very-quiet
+Suppress all messages except errors.
+.It Fl v , Fl -verbose
+Print all messages.
+.It Fl -profile
+Profile rendering of chart (only useful in batch mode with
+.Fl f ) .
+.It Fl -show-pid
+Show process IDs in the chart as
+.Ql processname [pid] .
+.It Fl -show-all
+Show all process information in the chart as
+.Ql /process/path/exe [pid] [args] .
+.It Fl -crop-after Ns = Ns Ar process
+Crop chart when idle after
+.Ar process
+is started.
+.It Fl -annotate Ns = Ns Ar process
+Annotate position where
+.Ar process
+is started.
+Can be specified multiple times.
+To create a single annotation when any one of a set of processes is
+started, use commas to separate the names.
+.It Fl -annotate-file Ns = Ns Ar filename
+Filename to write annotation points to.
+.El
+.Sh FILES
+.Bl -tag -width "/var/log/bootchart.tgz" -compact
+.It Pa /var/log/bootchart.tgz
+Default location of collected boot data.
+.El
+.Sh EXAMPLES
+View boot chart interactively:
+.Bd -literal -offset indent
+initviz -i /var/log/bootchart.tgz
+.Ed
+.Pp
+Generate PNG output:
+.Bd -literal -offset indent
+initviz -f png -o bootchart.png /var/log/bootchart.tgz
+.Ed
+.Sh SEE ALSO
+.Xr bootchartd 1
+.Sh AUTHORS
+.Nm
+is based on
+.Sy bootchart2
+and
+.Sy pybootchartgui .
+.Pp
+Original bootchart2 was written by
+.An Michael Meeks Aq Mt michael.meeks@novell.com ,
+.An Anders Norgaard Aq Mt anders.norgaard@gmail.com ,
+.An Scott James Remnant Aq Mt scott@ubuntu.com ,
+and
+.An Henning Niss Aq Mt henningniss@gmail.com .
+.Pp
+This manual page was adapted from the original written by
+.An David Paleino Aq Mt dapal@debian.org .
