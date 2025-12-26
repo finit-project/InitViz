@@ -165,7 +165,7 @@ close_wait_pid (DumpState *s, int avoid_kill)
 	/* wait at most second max */
 	for (i = 0; i < 100; i++) {
 		char buffer[1024];
-		sprintf (buffer, PROC_PATH "/%d/cmdline", pid);
+		snprintf (buffer, sizeof(buffer), PROC_PATH "/%d/cmdline", pid);
 		if (access (buffer, R_OK))
 			break;
 		usleep (10 * 1000);
@@ -469,7 +469,7 @@ dump_header (const char *output_path)
 		char *cpu_m = cpu_model;
 		int  cpus = 0;
 
-		sprintf (fname, "%s/proc_cpuinfo.log", output_path);
+		snprintf (fname, sizeof(fname), "%s/proc_cpuinfo.log", output_path);
 		cpuinfo_dump = fopen(fname, "w");
 
 		/* Dump /proc/cpuinfo for easier debugging with unexpected formats */

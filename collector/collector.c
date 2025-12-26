@@ -314,7 +314,7 @@ dump_proc_stat (BufferFile *file, int pid)
 	int  fd;
 	char filename[PATH_MAX];
 
-	sprintf (filename, PROC_PATH "/%d/stat", pid);
+	snprintf (filename, sizeof(filename), PROC_PATH "/%d/stat", pid);
 
 	fd = open (filename, O_RDONLY);
 	if (fd < 0)
@@ -330,9 +330,9 @@ static void
 dump_cmdline (BufferFile *file, pid_t pid)
 {
 	int fd, len;
-	char str[PATH_MAX], path[PATH_MAX], buffer[4096];
+	char str[PATH_MAX + 32], path[PATH_MAX], buffer[4096];
 
-	sprintf (str, PROC_PATH "/%d/exe", pid);
+	snprintf (str, sizeof(str), PROC_PATH "/%d/exe", pid);
 	if ((len = readlink (str, path, sizeof (path) - 1)) < 0)
 		return;
 	path[len] = '\0';
@@ -340,11 +340,11 @@ dump_cmdline (BufferFile *file, pid_t pid)
 	/* Zero delimited everything */
 
 	/* write <pid>\n<exe-path>\n */
-	sprintf (str, "%d\n:%s\n:", pid, path);
+	snprintf (str, sizeof(str), "%d\n:%s\n:", pid, path);
 	buffer_file_append (file, str, strlen (str));
 
 	/* write [zero delimited] <cmdline> */
-	sprintf (str, PROC_PATH "/%d/cmdline", pid);
+	snprintf (str, sizeof(str), PROC_PATH "/%d/cmdline", pid);
 	fd = open (str, O_RDONLY);
 	if (fd >= 0) {
 		int i, start;
@@ -379,7 +379,7 @@ dump_paternity (BufferFile *file, pid_t pid, pid_t ppid)
 {
 	char str[1024];
 	/* <Child> <Parent> */
-	sprintf (str, "%d %d\n", pid, ppid);
+	snprintf (str, sizeof(str), "%d %d\n", pid, ppid);
 	buffer_file_append (file, str, strlen (str));
 }
 
@@ -954,7 +954,7 @@ int main (int argc, char *argv[])
 		if (!u)
 			return 1;
 
-		uptimelen = sprintf (uptime, "%lu\n", u - reltime);
+		uptimelen = snprintf (uptime, sizeof(uptime), "%lu\n", u - reltime);
 
 		buffer_file_dump_frame_with_timestamp (stat_file, stat_fd, uptime, uptimelen);
 		buffer_file_dump_frame_with_timestamp (disk_file, disk_fd, uptime, uptimelen);
