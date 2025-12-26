@@ -42,10 +42,14 @@ COLLECTOR = \
 	collector/tasks-netlink.o \
 	collector/dump.o
 
-all: \
+collector: \
 	bootchart-collector \
-	bootchartd \
+	bootchartd
+
+python: \
 	initviz/main.py
+
+all: collector python
 
 %.o:%.c
 	$(CC) $(CFLAGS) $(LDFLAGS) -pthread \
@@ -76,7 +80,7 @@ bootchart-collector: $(COLLECTOR)
 initviz/main.py: initviz/main.py.in
 	$(substitute_variables) $^ > $@
 
-py-install-compile: initviz/main.py
+install-python: python
 	install -d $(DESTDIR)$(PY_SITEDIR)/initviz
 	find initviz -maxdepth 1 -name "*.py" -exec install -m 644 {} $(DESTDIR)$(PY_SITEDIR)/initviz/ \;
 	install -D -m 755 initviz.py $(DESTDIR)$(BINDIR)/initviz
@@ -87,7 +91,7 @@ py-install-compile: initviz/main.py
 install-chroot:
 	install -d $(DESTDIR)$(PKGLIBDIR)/tmpfs
 
-install-collector: all install-chroot
+install-collector: collector install-chroot
 	install -m 755 -D bootchartd $(DESTDIR)$(EARLY_PREFIX)/sbin/$(PROGRAM_PREFIX)bootchartd$(PROGRAM_SUFFIX)
 	install -m 644 -D bootchartd.conf $(DESTDIR)/etc/$(PROGRAM_PREFIX)bootchartd$(PROGRAM_SUFFIX).conf
 	install -m 755 -D bootchart-collector $(DESTDIR)$(PKGLIBDIR)/$(PROGRAM_PREFIX)bootchart$(PROGRAM_SUFFIX)-collector
@@ -99,7 +103,7 @@ install-docs:
 	gzip -c man/bootchartd.1 > $(DESTDIR)$(MANDIR)/$(PROGRAM_PREFIX)bootchartd$(PROGRAM_SUFFIX).1.gz
 	gzip -c man/initviz.1 > $(DESTDIR)$(MANDIR)/initviz.1.gz
 
-install: all py-install-compile install-collector install-docs
+install: all install-python install-collector install-docs
 
 clean:
 	-rm -f bootchart-collector bootchart-collector-dynamic \
@@ -124,4 +128,4 @@ test: initviz/tests
 		$(PYTHON) "$$f";\
 	done
 
-.PHONY: all clean distclean install install-chroot install-collector install-docs dist test
+.PHONY: all collector python clean distclean install install-chroot install-collector install-python install-docs dist test
