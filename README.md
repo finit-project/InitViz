@@ -1,6 +1,6 @@
 # InitViz
 
-<a href="initviz.png"><img align="right" src="initviz.png" width=350 title="InitViz Screenshot"></a>
+<a href="doc/initviz.png"><img align="right" src="doc/initviz.png" width=350 title="InitViz Screenshot"></a>
 
 Boot and init process performance visualization tool.
 

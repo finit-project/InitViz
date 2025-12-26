@@ -94,7 +94,7 @@ install-collector: all install-chroot
 
 install-docs:
 	install -m 644 -D README.md $(DESTDIR)$(DOCDIR)/README.md
-	install -m 644 -D initviz.png $(DESTDIR)$(DOCDIR)/initviz.png
+	install -m 644 -D doc/initviz.png $(DESTDIR)$(DOCDIR)/initviz.png
 	mkdir -p $(DESTDIR)$(MANDIR)
 	gzip -c man/bootchartd.1 > $(DESTDIR)$(MANDIR)/$(PROGRAM_PREFIX)bootchartd$(PROGRAM_SUFFIX).1.gz
 	gzip -c man/initviz.1 > $(DESTDIR)$(MANDIR)/initviz.1.gz
