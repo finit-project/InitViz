@@ -1,12 +1,11 @@
-VER=0.14.9
-PKG_NAME=initviz
-PKG_TARBALL=$(PKG_NAME)-$(VER).tar.gz
+VER            = 0.14.9
+PKG_NAME       = initviz
+PKG_TARBALL    = $(PKG_NAME)-$(VER).tar.gz
 
 CROSS_COMPILE ?= $(CONFIG_CROSS_COMPILE:"%"=%)
-
-CC ?= $(CROSS_COMPILE)gcc
-CFLAGS ?= -g -Wall -O0
-CPPFLAGS ?=
+CC            ?= $(CROSS_COMPILE)gcc
+CFLAGS        ?= -g -Wall -O0
+CPPFLAGS      ?=
 
 # Normally empty, but you can use program_prefix=mmeeks- or program_suffix=2
 # to install bootchart2 on a system that already has other projects that also
@@ -16,26 +15,26 @@ PROGRAM_SUFFIX ?=
 
 # Prefix for things that must reside on the root filesystem.
 # "" for e.g. Debian; /usr for distributions with /usr unification.
-EARLY_PREFIX ?=
+EARLY_PREFIX   ?=
 
-BINDIR ?= /usr/bin
-PYTHON ?= python3
-DOCDIR ?= /usr/share/doc/initviz
-MANDIR ?= /usr/share/man/man1
+BINDIR         ?= /usr/bin
+PYTHON         ?= python3
+DOCDIR         ?= /usr/share/doc/initviz
+MANDIR         ?= /usr/share/man/man1
 # never contains /usr; typically /lib, /lib64 or e.g. /lib/x86_64-linux-gnu
-LIBDIR ?= /lib
-PKGLIBDIR ?= $(EARLY_PREFIX)$(LIBDIR)/$(PROGRAM_PREFIX)bootchart$(PROGRAM_SUFFIX)
+LIBDIR         ?= /lib
+PKGLIBDIR      ?= $(EARLY_PREFIX)$(LIBDIR)/$(PROGRAM_PREFIX)bootchart$(PROGRAM_SUFFIX)
 
 ifndef PY_LIBDIR
 ifndef NO_PYTHON_COMPILE
-PY_LIBDIR := $(shell $(PYTHON) -c "from distutils import sysconfig; print(sysconfig.get_config_var('DESTLIB'))")
+PY_LIBDIR      := $(shell $(PYTHON) -c "from distutils import sysconfig; print(sysconfig.get_config_var('DESTLIB'))")
 else
-PY_LIBDIR = /usr$(LIBDIR)/python2.6
+PY_LIBDIR       = /usr$(LIBDIR)/python2.6
 endif
 endif
-PY_SITEDIR ?= $(PY_LIBDIR)/site-packages
-LIBC_A_PATH = /usr$(LIBDIR)
-COLLECTOR = \
+PY_SITEDIR     ?= $(PY_LIBDIR)/site-packages
+LIBC_A_PATH     = /usr$(LIBDIR)
+COLLECTOR       = \
 	collector/collector.o \
 	collector/output.o \
 	collector/tasks.o \
@@ -47,6 +46,7 @@ collector: \
 	bootchartd
 
 python: \
+	VERSION \
 	initviz/main.py
 
 all: collector python
@@ -76,6 +76,9 @@ bootchartd: bootchartd.in
 
 bootchart-collector: $(COLLECTOR)
 	$(CC) $(CFLAGS) $(LDFLAGS) -pthread -Icollector -o $@ $^
+
+VERSION:
+	@echo "$(VER)" > $@
 
 initviz/main.py: initviz/main.py.in
 	$(substitute_variables) $^ > $@
@@ -107,7 +110,7 @@ install: all install-python install-collector install-docs
 
 clean:
 	-rm -f bootchart-collector bootchart-collector-dynamic \
-	collector/*.o initviz/main.py bootchartd
+	collector/*.o initviz/main.py bootchartd VERSION
 
 distclean: clean
 	-find . -name __pycache__ -type d -exec rm -rf {} +
@@ -128,4 +131,32 @@ test: initviz/tests
 		$(PYTHON) "$$f";\
 	done
 
-.PHONY: all collector python clean distclean install install-chroot install-collector install-python install-docs dist test
+# PyPI packaging targets
+pypi-build: python
+	@echo "Building PyPI packages..."
+	pyproject-build
+
+pypi-test:
+	@echo "Installing package locally for testing..."
+	@echo "Run: pip install -e ."
+	@echo "Or:  pip install dist/initviz-$(VER)-py3-none-any.whl"
+
+pypi-upload-test: pypi-build
+	@echo "Uploading to TestPyPI..."
+	twine upload --repository testpypi dist/*
+
+pypi-upload: pypi-build
+	@echo "Uploading to PyPI..."
+	@read -p "Are you sure you want to upload to PyPI? [y/N] " -n 1 -r; \
+	echo; \
+	if [[ $$REPLY =~ ^[Yy]$$ ]]; then \
+		twine upload dist/*; \
+	else \
+		echo "Upload cancelled."; \
+	fi
+
+pypi-clean:
+	rm -rf dist/ build/ *.egg-info/
+
+.PHONY: all collector python clean distclean install install-chroot install-collector install-python install-docs dist test \
+	pypi-build pypi-test pypi-upload-test pypi-upload pypi-clean

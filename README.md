@@ -99,6 +99,40 @@ Riccardo Magliocchetti, which combined the original bootchart shell script
 by Ziga Mahkovec with pybootchartgui by Anders Norgaard and Henning Niss,
 and a C-based collector by Scott James Remnant and Michael Meeks.
 
+## Developer Notes
+
+### Building for PyPI
+
+Generate Python files and build distribution packages:
+
+```bash
+make pypi-build
+```
+
+### Testing Locally
+
+Test the built package:
+
+```bash
+make pypi-test
+```
+
+### Publishing
+
+Upload to TestPyPI first (recommended):
+
+```bash
+make pypi-upload-test
+```
+
+Then publish to PyPI:
+
+```bash
+make pypi-upload
+```
+
+For detailed PyPI instructions, see [README.PyPI.md](doc/README.PyPI.md).
+
 ## License
 
 The visualization tool (initviz.py) is licensed under GPLv3+. The collector

@@ -3,6 +3,7 @@
 *~
 bootchart-collector
 *.pyo
+*.tar.bz2
 *.tar.gz
 *.orig
 *.rej
@@ -10,3 +11,9 @@ no
 .project
 bootchartd
 initviz/main.py
+VERSION
+dist/
+build/
+*.egg-info/
+.venv/
+__pycache__/

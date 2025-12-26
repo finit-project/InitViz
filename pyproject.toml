@@ -1,0 +1,63 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "initviz"
+dynamic = ["version"]
+description = "Boot and init process performance visualization tool"
+readme = "README.md"
+license = "GPL-3.0-or-later"
+authors = [
+    { name = "Joachim Wiberg", email = "troglobit@gmail.com" },
+    { name = "Riccardo Magliocchetti" },
+    { name = "Michael Meeks" },
+    { name = "Anders Norgaard" },
+    { name = "Henning Niss" }
+]
+keywords = ["bootchart", "boot", "performance", "visualization", "profiling"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: X11 Applications :: GTK",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: System :: Boot",
+    "Topic :: System :: Monitoring"
+]
+requires-python = ">= 3.8"
+dependencies = [
+    "pycairo",
+    "PyGObject"
+]
+
+[project.urls]
+homepage = "https://github.com/finit-project/InitViz"
+repository = "https://github.com/finit-project/InitViz"
+documentation = "https://github.com/finit-project/InitViz/blob/main/README.md"
+changelog = "https://github.com/finit-project/InitViz/blob/main/doc/ChangeLog.md"
+
+[project.scripts]
+initviz = "initviz.main:main"
+
+[tool.setuptools]
+packages = ["initviz"]
+include-package-data = true
+
+[tool.setuptools.dynamic]
+version = {file = "VERSION"}
+
+[tool.setuptools.package-data]
+initviz = ["*.py"]
+
+[project.optional-dependencies]
+dev = [
+    "build",
+    "twine"
+]

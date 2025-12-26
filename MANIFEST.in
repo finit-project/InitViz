@@ -1,0 +1,8 @@
+include README.md
+include COPYING
+include VERSION
+include requirements.txt
+include initviz/LICENSE
+include doc/ChangeLog.md
+include doc/initviz.png
+recursive-include man *.1

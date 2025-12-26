@@ -26,8 +26,9 @@ from . import batch
 
 def _mk_options_parser():
 	"""Make an options parser."""
+	from . import get_version
 	usage = "%prog [options] PATH, ..., PATH"
-	version = "%prog v@VER@"
+	version = "%prog v" + get_version()
 	parser = optparse.OptionParser(usage, version=version)
 	parser.add_option("-i", "--interactive", action="store_true", dest="interactive", default=False,
 			  help="start in active mode")
