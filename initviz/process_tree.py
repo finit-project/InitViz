@@ -115,12 +115,16 @@ class ProcessTree:
 
     def get_end_time(self, process_subtree):
         """Returns the end time of the process subtree.  This is the end time
-           of the last collected sample.
+           of the last collected sample, excluding the bootchart collector itself
+           to avoid including post-boot data collection time in the boot duration.
 
         """
         if not process_subtree:
             return -100000000
-        return max( [max(proc.start_time + proc.duration, self.get_end_time(proc.child_list)) for proc in process_subtree] )
+        # Exclude bootchartd and bootchart-collector from boot time calculation
+        return max( [max(proc.start_time + proc.duration, self.get_end_time(proc.child_list))
+                     for proc in process_subtree
+                     if proc.cmd not in ('bootchartd', 'bootchart-colle')] + [-100000000] )
 
     def get_max_pid(self, process_subtree):
         """Returns the max PID found in the process tree."""
