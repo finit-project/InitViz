@@ -38,6 +38,7 @@ PATH="/sbin:/bin:/usr/sbin:/usr/bin:$PATH"
 
 # Defaults, in case we can't find our configuration
 SAMPLE_HZ=50
+SETTLE_TIME=2
 BOOTLOG_DEST=/var/log/bootchart.tgz
 AUTO_RENDER="no"
 AUTO_RENDER_DIR="/var/log"
@@ -105,52 +106,56 @@ wait_boot()
 
 	# Wait for /proc first - without it we have issues
 	while [ ! -e /proc/cmdline ]; do
-		$USLEEP 5000
+		$USLEEP 50000
 	done
 
 	while true; do
-		if [ -n "$EXIT_PROC" -a -n "$( pidof $EXIT_PROC )" ]; then
-			# give an unambiguous settle afterwards - so we get
-			# more post-login data for slow systems
-			$USLEEP 20000000
-
-			# Write / flush the log files
-			stop
-			return
-		fi
-		$USLEEP 1000000
-	done;
+		pid=$(pidof -s $EXIT_PROC) || {
+			$USLEEP 1000000
+			continue
+		}
+		comm=$(cat "/proc/$pid/comm" 2>/dev/null)
+		stop "$pid $comm"
+		return
+	done
 }
 
 # Extract the log data from the running bootchart collector
 # process (via ptrace) - fun. Store logs into $BOOTLOG_DEST.
 stop()
 {
-	tmpdir=`mktemp -d /tmp/bootchart.XXXXXXXXXX`
+	tmpdir=$(mktemp -d /tmp/bootchart.XXXXXXXXXX)
 	if [ "z$tmpdir" = "z" ]; then
 		echo "Failed to generate directory for logging"
 		exit 1
 	fi
 
-	if ! $COLLECTOR_BIN --dump $tmpdir; then
-		echo "Can't extract boot chart from collector"
+	cd "$tmpdir" || (echo "Failed chaning to $tmpdir"; exit 1)
+	cut -f1 -d' ' /proc/uptime > boot_time
+	files="header boot_time *.log"
+
+	if [ -n "$1" ]; then
+		echo "$1" > exit_proc
+		files="exit_proc $files"
+	fi
+
+	if [ "$SETTLE_TIME" -gt 0 ]; then
+		$USLEEP $(( SETTLE_TIME * 1000000 ))
+	fi
+
+	if ! $COLLECTOR_BIN --dump "$tmpdir"; then
+		echo "Canont extract boot chart from collector"
 		exit 1
 	fi
 
-	cd $tmpdir
 	if [ ! -e proc_stat.log ]; then
 		echo "Can't find bootchart output in $tmpdir - aborting"
 		exit 1
 	fi
 
 	# Archive it all up into the bootchart output
-	# expect dmesg log only if bootchartd was started as an init process
-	if [ -n "$INIT_PROCESS" ] ; then
-		tar -zcf "$BOOTLOG_DEST" header dmesg *.log
-	else
-		tar -zcf "$BOOTLOG_DEST" header *.log
-	fi
-
+	[ -f dmesg ] && files="dmesg $files"
+	tar -zcf "$BOOTLOG_DEST" $files
 	rm -Rf $tmpdir
 
 	# Render the chart if configured (and the renderer is installed)

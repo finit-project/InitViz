@@ -390,7 +390,7 @@ def render(ctx, options, xscale, trace):
 	global OPTIONS
 	OPTIONS = options.app_options
 
-	proc_tree = options.proc_tree (trace)
+	proc_tree = options.proc_tree(trace)
 
 	# x, y, w, h
 	clip = ctx.clip_extents()
@@ -407,12 +407,13 @@ def render(ctx, options, xscale, trace):
 		duration = proc_tree.duration
 
 	if not options.kernel_only:
-		curr_y = draw_header (ctx, trace.headers, duration)
+		boot_time = proc_tree.boot_time or duration
+		curr_y = draw_header(ctx, trace.headers, boot_time)
 	else:
 		curr_y = off_y;
 
 	if options.charts:
-		curr_y = render_charts (ctx, options, clip, trace, curr_y, w, h, sec_w)
+		curr_y = render_charts(ctx, options, clip, trace, curr_y, w, h, sec_w)
 
 	# draw process boxes
 	proc_height = h
@@ -469,7 +470,7 @@ def draw_process_bar_chart(ctx, clip, options, proc_tree, times, curr_y, w, h, s
 		y = y + proc_h * proc_tree.num_nodes([root])
 
 
-def draw_header (ctx, headers, duration):
+def draw_header (ctx, headers, boot_time):
     toshow = [
       ('system.uname', 'uname', lambda s: s),
       ('system.release', 'release', lambda s: s),
@@ -491,7 +492,7 @@ def draw_header (ctx, headers, duration):
         txt = headertitle + ': ' + mangle(value)
         draw_text(ctx, txt, TEXT_COLOR, off_x, header_y)
 
-    dur = duration / 100.0
+    dur = boot_time / 100.0
     txt = 'Boot time : %02d:%05.2f' % (math.floor(dur/60), dur - 60 * math.floor(dur/60))
     if headers.get('system.maxpid') is not None:
         txt = txt + '      max pid: %s' % (headers.get('system.maxpid'))
@@ -788,7 +789,7 @@ def draw_cuml_graph(ctx, proc_tree, chart_bounds, duration, sec_w, stat_type):
 		time = t[1]
 		x = chart_bounds[0] + off_x + int (i/LEGENDS_PER_COL) * label_width
 		y = chart_bounds[1] + font_height * ((i % LEGENDS_PER_COL) + 2)
-		str = "%s - %.0f(ms) (%2.2f%%)" % (cs.cmd, time/1000000, (time/total_time) * 100.0)
+		str = "%s - %.0fms (%2.2f%%)" % (cs.cmd, time/1000000, (time/total_time) * 100.0)
 		draw_legend_box(ctx, str, cs.color, x, y, leg_s)
 		i = i + 1
 		if i >= LEGENDS_TOTAL:

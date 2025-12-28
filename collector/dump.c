@@ -181,12 +181,12 @@ static int close_pid(DumpState *s, int avoid_kill)
 {
 	int pid;
 
+	/* Detach from ptrace first - signals aren't delivered while ptraced */
+	ptrace(PTRACE_DETACH, s->pid, 0, 0);
+
 	/* Rather terminate the process then killing, less scary messages */
 	if (!avoid_kill && kill(s->pid, SIGTERM))
 		log("failed to terminate pid %d: %s\n", s->pid, strerror(errno));
-
-	/* presumably dead by now - but detach anyway */
-	ptrace(PTRACE_DETACH, s->pid, 0, 0);
 
 	close(s->mem);
 	pid = s->pid;
@@ -197,20 +197,25 @@ static int close_pid(DumpState *s, int avoid_kill)
 
 static void close_wait_pid(DumpState *s, int avoid_kill)
 {
+	const int timeout = 100;
 	int i, pid;
 
 	pid = close_pid(s, avoid_kill);
 	/* 's' invalid */
 
-	/* wait at most second max */
-	for (i = 0; i < 100; i++) {
+	/* Wait up to 10 seconds for cleanup */
+	for (i = 0; i < timeout; i++) {
 		char buffer[256];
 
 		snprintf(buffer, sizeof(buffer), PROC_PATH "/%d/cmdline", pid);
 		if (access(buffer, R_OK))
 			break;
-		usleep(10 * 1000);
+
+		usleep(100 * 1000);
 	}
+
+	if (i >= timeout)
+		log("Warning: collector did not exit within %d seconds\n", timeout / 10);
 }
 
 static void dump_buffers(DumpState *s)

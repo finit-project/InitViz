@@ -51,6 +51,7 @@ class Trace:
         self.filename = None
         self.parent_map = None
         self.mem_stats = None
+        self.boot_time = None  # Time when EXIT_PROC was detected
 
         parse_paths (writer, self, paths)
         if not self.valid():
@@ -83,7 +84,8 @@ class Trace:
                                      self.ps_stats.sample_period,
                                      self.headers.get("profile.process"),
                                      options.prune, idle, self.taskstats,
-                                     self.parent_map is not None)
+                                     self.parent_map is not None,
+                                     self.boot_time)
 
         if self.kernel is not None:
             self.kernel_tree = ProcessTree(writer, self.kernel, None, 0,
@@ -665,6 +667,11 @@ def _do_parse(writer, state, name, file):
     t1 = perf_counter()
     if name == "header":
         state.headers = _parse_headers(file)
+    elif name == "boot_time":
+        # Boot completion time (when EXIT_PROC was detected)
+        line = file.read().strip()
+        if line:
+            state.boot_time = float(line)
     elif name == "proc_diskstats.log":
         state.disk_stats = _parse_proc_disk_stat_log(file, get_num_cpus(state.headers))
     elif name == "taskstats.log":

@@ -39,10 +39,12 @@ class ProcessTree:
 
     def __init__(self, writer, kernel, psstats, sample_period,
                  monitoredApp, prune, idle, taskstats,
-                 accurate_parentage, for_testing = False):
+                 accurate_parentage, boot_time=None, for_testing=False):
         self.writer = writer
         self.process_tree = []
         self.taskstats = taskstats
+        # Convert seconds to centiseconds, like duration is in
+        self.boot_time = int(boot_time * 100) if boot_time is not None else None
         if psstats is None:
             process_list = kernel
         elif kernel is None:
