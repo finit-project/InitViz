@@ -7,21 +7,25 @@ All relevant changes are documented in this file.
 [1.0.0][UNRELEASED] - 2025-12-xx
 ---------------------------
 
-InitViz is a fork of [bootchart2][] by Riccardo Magliocchetti.
+InitViz is a fork of [bootchart2][] by Riccardo Magliocchetti et al.
 
 ### Changes
 - Rename project from bootchart2 to InitViz
-- Rename `pybootchartgui` to `initviz`
-- Add interactive mode with Best Fit feature
+- Rename `pybootchartgui` to `initviz` and finish port to Python3/GTK3
+- Add menu bar for all options, new Best Fit auto-zoomer, sorting, and more
 - Convert man pages to mdoc format
 - Reorganize documentation to `doc/` and `man/` directories
 - Drop systemd service files (use `systemd-analyze` instead)
 - Change distribution format from tar.bz2 to tar.gz
+- Reduce stack usage in bootchartd collector
+- Reindent collector code to Linux KNF
+- Fix leading tabs in Python code
 
 ### Fixes
 - Fix buffer overflow in collector with `snprintf()` replacements
 - Replace all unsafe `sprintf()` calls with `snprintf()`
 
+[bootchart2]: https://github.com/xrmx/bootchart
 
 [0.14.9][] - 2020-01-05
 -----------------------
@@ -351,7 +355,6 @@ Administrative snafu version; pull before pushing...
 - Add a NEWS file
 
 
-[bootchart2]:    https://github.com/xrmx/bootchart
 [UNRELEASED]:    https://github.com/finit-project/InitViz/compare/0.14.9...HEAD
 [1.0.0]:         https://github.com/finit-project/InitViz/compare/0.14.9...1.0.0
 [0.14.9]:        https://github.com/xrmx/bootchart/releases/tag/0.14.9
