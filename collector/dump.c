@@ -15,6 +15,56 @@ typedef struct {
 	StackMap map;
 } DumpState;
 
+/*
+ * Safe string copy, guarantees null-termination.
+ * Similar to strlcpy() but available everywhere.
+ */
+static void
+safe_strcpy(char *dst, const char *src, size_t size)
+{
+	if (size == 0)
+		return;
+	strncpy(dst, src, size - 1);
+	dst[size - 1] = '\0';
+}
+
+/*
+ * Remove trailing newline from string.
+ */
+static void
+chomp(char *str)
+{
+	size_t len = strlen(str);
+	if (len > 0 && str[len - 1] == '\n')
+		str[len - 1] = '\0';
+}
+
+/*
+ * Strip leading/trailing quotes and newline from string.
+ * Modifies string in place, moves content to start of buffer.
+ */
+static char *
+strip_quotes(char *str)
+{
+	char *p = str;
+	size_t len;
+
+	/* Skip leading quote */
+	if (*p == '"')
+		p++;
+
+	/* Remove trailing quote */
+	len = strlen(p);
+	if (len > 0 && p[len - 1] == '"')
+		p[len - 1] = '\0';
+
+	/* Move to start of buffer if needed */
+	if (p != str)
+		memmove(str, p, strlen(p) + 1);
+
+	return str;
+}
+
 static StackMap *
 search_stack (char *stack, size_t len)
 {
@@ -71,10 +121,9 @@ find_chunks (DumpState *s)
 			if (count < 0) {
 				if (errno == EINTR || errno == EAGAIN)
 					continue;
-				else {
-					log ("pread error '%s'\n", strerror (errno));
-					break;
-				}
+
+				log ("pread error '%s'\n", strerror (errno));
+				break;
 			}
 			read_bytes += count;
 		}
@@ -443,20 +492,37 @@ dump_header (const char *output_path)
 				 ubuf.sysname, ubuf.release, ubuf.version, ubuf.machine);
 	}
 	{
-		FILE *lsb;
-		char release[4096] = "";
+		FILE *osrel;
+		char line[512], release[512] = "";
 
-		lsb = popen ("lsb_release -sd", "r");
-		if (lsb && fgets (release, 4096, lsb)) {
-			if (release[0] == '"')
-				memmove (release, release + 1, strlen (release + 1));
-			if (strrchr (release, '"'))
-				*strrchr (release, '"') = '\0';
-		} else
-			release[0] = '\0';
-		fprintf (header, "system.release = %s\n", release);
-		if (lsb)
-			pclose (lsb);
+		osrel = fopen ("/etc/os-release", "r");
+		if (osrel) {
+			while (fgets (line, sizeof(line), osrel)) {
+				chomp(line);
+
+				if (!strncmp (line, "PRETTY_NAME=", 12)) {
+					safe_strcpy (release, line + 12, sizeof(release));
+					break;
+				}
+				if (!strncmp (line, "NAME=", 5))
+					/* fallback in case PRETTY_NAME is not set */
+					safe_strcpy (release, line + 5, sizeof(release));
+			}
+			fclose (osrel);
+		}
+
+		/* Fallback to lsb_release if os-release not found or empty */
+		if (!release[0]) {
+			FILE *lsb = popen ("lsb_release -sd", "r");
+
+			if (lsb) {
+				if (fgets (release, sizeof(release), lsb))
+					chomp(release);
+				pclose (lsb);
+			}
+		}
+
+		fprintf (header, "system.release = %s\n", strip_quotes (release));
 	}
 
 	{
