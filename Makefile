@@ -64,6 +64,7 @@ python: \
 substitute_variables = \
 	sed -s \
 		-e "s:@LIBDIR@:$(LIBDIR):g" \
+		-e "s:@BINDIR@:$(BINDIR):g" \
 		-e "s:@PKGLIBDIR@:$(PKGLIBDIR):" \
 		-e "s:@PROGRAM_PREFIX@:$(PROGRAM_PREFIX):" \
 		-e "s:@PROGRAM_SUFFIX@:$(PROGRAM_SUFFIX):" \

@@ -23,6 +23,7 @@
 # our 'proc' without having to touch a (potentially) read-only
 # file-system.
 LIBDIR="@LIBDIR@"
+BINDIR="@BINDIR@"
 PKGLIBDIR="@PKGLIBDIR@"
 PROGRAM_PREFIX="@PROGRAM_PREFIX@"
 PROGRAM_SUFFIX="@PROGRAM_SUFFIX@"
@@ -62,10 +63,10 @@ EXIT_PROC="compiz \
 # Read configuration.
 CONFBASE="${PROGRAM_PREFIX}bootchartd${PROGRAM_SUFFIX}"
 CONF="/etc/${CONFBASE}.conf"
-if [ -f $PWD/${CONFBASE}.conf ]; then
-	. $PWD/${CONFBASE}.conf
-elif [ -f $CONF ]; then
-	. $CONF
+if [ -f "$PWD/${CONFBASE}.conf" ]; then
+	. "$PWD/${CONFBASE}.conf"
+elif [ -f "$CONF" ]; then
+	. "$CONF"
 else
 	echo "$CONF missing"
 fi
@@ -88,8 +89,8 @@ start()
 		if [ "$#" -gt 0 ]; then
 			# If a command was passed, run it
 			# (used for profiling specific applications)
-			echo "profile.process = $( basename $1 )" >> header
-			$@
+			echo "profile.process = $(basename "$1")" >> header
+			"$@"
 			stop
 		else
 			echo "no command passed, you need to manually stop the service sometime"
@@ -100,7 +101,7 @@ start()
 # Wait for the boot process to end.
 wait_boot()
 {
-	trap "" SIGHUP
+	trap "" HUP
 
 	# Wait for /proc first - without it we have issues
 	while [ ! -e /proc/cmdline ]; do
@@ -153,9 +154,9 @@ stop()
 	rm -Rf $tmpdir
 
 	# Render the chart if configured (and the renderer is installed)
-	if [ "$AUTO_RENDER" = "yes" -a -x /usr/bin/initviz ]; then
-		cd $AUTO_RENDER_DIR
-		/usr/bin/initviz -o "$AUTO_RENDER_DIR"/bootchart.$AUTO_RENDER_FORMAT -f $AUTO_RENDER_FORMAT "$BOOTLOG_DEST"
+	if [ "$AUTO_RENDER" = "yes" ] && [ -x "$BINDIR/initviz" ]; then
+		cd $AUTO_RENDER_DIR || (echo "Failed cd $AUTO_RENDER_DIR"; exit 1)
+		"$BINDIR/initviz" -o "$AUTO_RENDER_DIR"/bootchart.$AUTO_RENDER_FORMAT -f $AUTO_RENDER_FORMAT "$BOOTLOG_DEST"
 	fi
 
 	# execute custom post-collect (and possibly post-render) command (which could get params from the conf file by itself if needed)
@@ -175,8 +176,7 @@ if [ $$ -eq 1 ]; then
 	init="/sbin/init"
 
 	# Are we running in the initrd ?
-	if [ -x /init -o -x /linuxrc ]; then
-		IN_INITRD="yes"
+	if [ -x /init ] || [ -x /linuxrc ]; then
 		[ -x /linuxrc ] && init="/linuxrc"
 		[ -x /init ] && init="/init"
 		start &
@@ -210,10 +210,9 @@ if [ $$ -eq 1 ]; then
 			esac
 		fi
 	done
-	export PATH=$OLDPATH
 
 	# switch to - either the initrd's init, or the main system's
-	exec $init $*
+	exec $init $@
 fi
 
 case "$1" in
