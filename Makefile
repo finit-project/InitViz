@@ -5,7 +5,8 @@ PKG_TARBALL    = $(PKG_NAME)-$(VER).tar.gz
 CROSS_COMPILE ?= $(CONFIG_CROSS_COMPILE:"%"=%)
 CC            ?= $(CROSS_COMPILE)gcc
 CFLAGS        ?= -g -Wall -O0
-CPPFLAGS      ?=
+CPPFLAGS      += -D_XOPEN_SOURCE=800 -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE \
+                 -D_DEFAULT_SOURCE -D_BSD_SOURCE -D_ATFILE_SOURCE -D_GNU_SOURCE
 
 # Normally empty, but you can use program_prefix=mmeeks- or program_suffix=2
 # to install bootchart2 on a system that already has other projects that also

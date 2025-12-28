@@ -4,15 +4,6 @@
 #ifndef BOOTCHART_COMMON_H
 #define BOOTCHART_COMMON_H
 
-/* get the right versions of various key functions */
-#define _XOPEN_SOURCE 800
-#define _FILE_OFFSET_BITS 64
-#define _LARGEFILE64_SOURCE
-#define _DEFAULT_SOURCE
-#define _BSD_SOURCE
-#define _ATFILE_SOURCE
-#define _GNU_SOURCE
-
 #include <sys/mount.h>
 #include <sys/time.h>
 #include <sys/types.h>
