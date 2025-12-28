@@ -25,6 +25,12 @@ initcall_debug printk.time=y quiet init=/sbin/bootchartd
 
 After boot, data is saved to `/var/log/bootchart.tgz`.
 
+> [!NOTE]
+> The collector monitors `/proc/*/stat` and stops when it detects a login
+> process (getty, gdm, kdm, xdm, etc.), configurable with `EXIT_PROC`.  After
+> detection, it continues for `SETTLE_TIME` seconds (default: 2, configurable
+> in `/etc/bootchartd.conf`) to capture post-login activity.
+
 ### Viewing Results
 
 Interactive mode:
@@ -40,6 +46,11 @@ Generate PNG:
 initviz -f png -o bootchart.png /var/log/bootchart.tgz
 ...
 ```
+
+> [!NOTE]
+> Boot time is calculated as the end time of the last non-bootchart process,
+> excluding the collector's runtime.  This accounts for services that start
+> in the background after any of `EXIT_PROC` appears.
 
 ### Profiling Running System
 
@@ -61,10 +72,21 @@ initviz -i /var/log/bootchart.tgz
 
 ## Requirements
 
-- Linux kernel with `CONFIG_PROC_EVENTS=y` and `CONFIG_TASKSTATS=y` (recommended)
+- Linux kernel with:
+  - `CONFIG_PROC_EVENTS=y` - Process event monitoring (recommended)
+  - `CONFIG_TASKSTATS=y` - Task statistics (required for detailed process data)
+  - `CONFIG_TASK_DELAY_ACCT=y` - **Required for cumulative I/O charts**
+  - `CONFIG_TASK_IO_ACCOUNTING=y` - I/O accounting (recommended)
 - Python 3
 - GTK 3 (for interactive mode)
 - Cairo (for rendering)
+
+**Note on cumulative I/O charts:**
+
+The cumulative I/O chart requires `CONFIG_TASK_DELAY_ACCT=y` and only renders
+when processes experience measurable I/O delays (blkio_delay_total or
+swapin_delay_total > 0). Systems with fast storage or efficient I/O may show
+zero delays, in which case no I/O chart is rendered.
 
 ## Installation
 
