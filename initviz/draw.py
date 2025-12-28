@@ -22,6 +22,9 @@ import random
 import colorsys
 from operator import itemgetter
 
+# Track whether we've warned about degenerate data
+_warned_degenerate = False
+
 class RenderOptions:
 
 	def __init__(self, app_options):
@@ -647,7 +650,10 @@ def draw_cuml_graph(ctx, proc_tree, chart_bounds, duration, sec_w, stat_type):
 	# all the sample times
 	times = sorted(time_hash)
 	if len (times) < 2 or total_time == 0:
-		print("degenerate boot chart")
+		global _warned_degenerate
+		if not _warned_degenerate:
+			print("warning: insufficient data for cumulative chart (need at least 2 time samples with non-zero CPU/IO)")
+			_warned_degenerate = True
 		return
 
 	pix_per_ns = chart_bounds[3] / total_time
