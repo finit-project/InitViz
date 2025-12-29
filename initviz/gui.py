@@ -477,8 +477,8 @@ class PyBootchartWindow(gtk.Window):
 
         actiongroup.add_toggle_actions((
                 ('BestFit', None, '_Best Fit', None, 'Automatically fit content to window', self.on_toggle_best_fit, True),
-                ('ShowPID', None, 'Show _PID', None, 'Show process IDs', self.on_toggle_show_pid, app_options.show_pid),
-                ('ShowAll', None, 'Show _All', None, 'Show full command lines and arguments', self.on_toggle_show_all, app_options.show_all),
+                ('ShowPID', None, 'Show P_ID', '<Control>i', 'Show process IDs', self.on_toggle_show_pid, app_options.show_pid),
+                ('ShowAll', None, 'Show _All', '<Control>a', 'Show full command lines and arguments', self.on_toggle_show_all, app_options.show_all),
                 ('NoPrune', None, '_Trim Procs', '<Control>t', 'Trim the process tree to remove short-lived and idle processes', self.on_toggle_prune_procs, app_options.prune),
                 ('ShowTabs', None, 'Show _Tabs', None, 'Show or hide tab bar', self.on_toggle_tabs, True),
                 ('ShowToolbar', None, 'Show _Toolbar', None, 'Show or hide toolbar', self.on_toggle_toolbar, True),
