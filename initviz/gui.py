@@ -462,6 +462,7 @@ class PyBootchartWindow(gtk.Window):
                 ('File', None, '_File'),
                 ('Open', gtk.STOCK_OPEN, None, '<Control>O', 'Open bootchart', self.on_open),
                 ('Save', gtk.STOCK_SAVE_AS, None, '<Control>S', 'Save bootchart', self.on_save),
+                ('Print', gtk.STOCK_PRINT, None, '<Control>P', 'Print bootchart', self.on_print),
                 ('Close', gtk.STOCK_CLOSE, None, '<Control>W', 'Close window', self.on_close),
                 ('View', None, '_View'),
                 ('Expand', gtk.STOCK_ADD, '_Expand Timeline', 'plus', 'Expand timeline', self.on_expand),
@@ -492,6 +493,7 @@ class PyBootchartWindow(gtk.Window):
                         <menu action="File">
                                 <menuitem action="Open"/>
                                 <menuitem action="Save"/>
+                                <menuitem action="Print"/>
                                 <separator/>
                                 <menuitem action="Close"/>
                         </menu>
@@ -780,6 +782,59 @@ class PyBootchartWindow(gtk.Window):
                 error_dialog.destroy()
         else:
             dialog.destroy()
+
+    def on_print(self, action):
+        print_op = gtk.PrintOperation()
+        print_op.set_n_pages(1)
+        print_op.set_unit(gtk.Unit.POINTS)
+
+        def begin_print(operation, context):
+            pass
+
+        def draw_page(operation, context, page_nr):
+            cr = context.get_cairo_context()
+
+            # Get page dimensions
+            page_width = context.get_width()
+            page_height = context.get_height()
+
+            # Get chart dimensions
+            current_tab = self.get_current_tab()
+            options = current_tab.widget2.options
+            from . import draw
+            chart_width, chart_height = draw.extents(options, 1.0, self.trace)
+
+            # Calculate scaling to fit page
+            scale_x = page_width / chart_width
+            scale_y = page_height / chart_height
+            scale = min(scale_x, scale_y)
+
+            # Center on page
+            offset_x = (page_width - chart_width * scale) / 2
+            offset_y = (page_height - chart_height * scale) / 2
+
+            cr.translate(offset_x, offset_y)
+            cr.scale(scale, scale)
+
+            # Render the chart
+            draw.render(cr, options, 1.0, self.trace)
+
+        print_op.connect('begin-print', begin_print)
+        print_op.connect('draw-page', draw_page)
+
+        result = print_op.run(gtk.PrintOperationAction.PRINT_DIALOG, self)
+
+        if result == gtk.PrintOperationResult.ERROR:
+            error_dialog = gtk.MessageDialog(
+                parent=self,
+                flags=0,
+                message_type=gtk.MessageType.ERROR,
+                buttons=gtk.ButtonsType.OK,
+                text="Print Error"
+            )
+            error_dialog.format_secondary_text("An error occurred while printing")
+            error_dialog.run()
+            error_dialog.destroy()
 
     def on_close(self, action):
         self.destroy()
