@@ -7,8 +7,16 @@ bootchart-collector
 *.tar.gz
 *.orig
 *.rej
+bootchart.png
+bootchart.svg
+bootchart.pdf
 no
 .project
+CLAUDE.md
+GPATH
+GRTAGS
+GTAGS
+ID
 bootchartd
 initviz/main.py
 VERSION
