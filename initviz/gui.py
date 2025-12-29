@@ -574,6 +574,7 @@ class PyBootchartWindow(gtk.Window):
         dur = duration / 100.0
         boot_time_str = '%02d:%05.2f' % (math.floor(dur/60), dur - 60 * math.floor(dur/60))
         statusbar.push(0, "Boot time: %s" % boot_time_str)
+        GObject.timeout_add(5000, lambda: statusbar.pop(0))
 
         full_opts = RenderOptions(app_options)
         full_tree = PyBootchartShell(window, trace, full_opts, 3.0)
@@ -755,18 +756,15 @@ class PyBootchartWindow(gtk.Window):
 
             try:
                 writer = Writer()
-                current_tab = self.get_current_tab()
-                batch.render(writer, self.trace, current_tab.widget2.options, filename)
-                info_dialog = gtk.MessageDialog(
-                    parent=self,
-                    flags=0,
-                    message_type=gtk.MessageType.INFO,
-                    buttons=gtk.ButtonsType.OK,
-                    text="File saved successfully"
-                )
-                info_dialog.format_secondary_text(f"Saved to {filename}")
-                info_dialog.run()
-                info_dialog.destroy()
+                # Temporarily set format to None so batch.render derives it from filename extension
+                saved_format = self.app_options.format
+                self.app_options.format = None
+                try:
+                    batch.render(writer, self.trace, self.app_options, filename)
+                    self.statusbar.push(0, f"Saved to {filename}")
+                    GObject.timeout_add(5000, lambda: self.statusbar.pop(0))
+                finally:
+                    self.app_options.format = saved_format
             except Exception as e:
                 error_dialog = gtk.MessageDialog(
                     parent=self,
