@@ -471,6 +471,7 @@ class PyBootchartWindow(gtk.Window):
                 ('ZoomOut', gtk.STOCK_ZOOM_OUT, None, '<Control>minus', 'Zoom out', self.on_zoom_out),
                 ('ZoomFit', gtk.STOCK_ZOOM_FIT, 'Fit Width', None, 'Fit to width', self.on_zoom_fit),
                 ('Zoom100', gtk.STOCK_ZOOM_100, None, '<Control>0', 'Original size', self.on_zoom_100),
+                ('Sort', None, '_Sort'),
                 ('Help', None, '_Help'),
                 ('About', gtk.STOCK_ABOUT, None, None, 'About InitViz', self.on_about),
         ))
@@ -484,6 +485,20 @@ class PyBootchartWindow(gtk.Window):
                 ('ShowToolbar', None, 'Show _Toolbar', None, 'Show or hide toolbar', self.on_toggle_toolbar, True),
                 ('ShowStatusbar', None, 'Show _Statusbar', None, 'Show or hide status bar', self.on_toggle_statusbar, True),
         ))
+
+        # Ensure app_options has proc_sort attribute with default
+        if not hasattr(app_options, 'proc_sort'):
+            app_options.proc_sort = 'pid'
+
+        # Radio actions for sort options
+        sort_map_reverse = {'pid': 0, 'start-time': 1, 'cpu-time': 2, 'end-time': 3}
+        sort_default = sort_map_reverse.get(app_options.proc_sort, 0)
+        actiongroup.add_radio_actions((
+                ('SortPID', None, 'By _PID', None, 'Sort processes by PID', 0),
+                ('SortStartTime', None, 'By _Start Time', None, 'Sort processes by start time (default)', 1),
+                ('SortCPUTime', None, 'By _CPU Time', None, 'Sort processes by CPU usage', 2),
+                ('SortEndTime', None, 'By _End Time', None, 'Sort processes by end time (finish time)', 3),
+        ), sort_default, self.on_sort_changed)
 
         uimanager.insert_action_group(actiongroup, 0)
 
@@ -514,6 +529,12 @@ class PyBootchartWindow(gtk.Window):
                                 <menuitem action="ShowTabs"/>
                                 <menuitem action="ShowToolbar"/>
                                 <menuitem action="ShowStatusbar"/>
+                        </menu>
+                        <menu action="Sort">
+                                <menuitem action="SortPID"/>
+                                <menuitem action="SortStartTime"/>
+                                <menuitem action="SortEndTime"/>
+                                <menuitem action="SortCPUTime"/>
                         </menu>
                         <menu action="Help">
                                 <menuitem action="About"/>
@@ -858,6 +879,14 @@ class PyBootchartWindow(gtk.Window):
         # Update prune option
         self.app_options.prune = action.get_active()
         # Reload trace with new prune setting
+        self.reload_trace()
+
+    def on_sort_changed(self, action, current):
+        # Map radio action values to sort strategy strings
+        sort_map = {0: 'pid', 1: 'start-time', 2: 'cpu-time', 3: 'end-time'}
+        sort_value = current.get_current_value()
+        self.app_options.proc_sort = sort_map.get(sort_value, 'pid')
+        # Reload trace with new sort setting
         self.reload_trace()
 
     def on_toggle_tabs(self, action):

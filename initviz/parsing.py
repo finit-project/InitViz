@@ -82,18 +82,19 @@ class Trace:
                     else:
                         self.times.append(None)
 
+        proc_sort = getattr(options, 'proc_sort', 'start-time')
         self.proc_tree = ProcessTree(writer, self.kernel, self.ps_stats,
                                      self.ps_stats.sample_period,
                                      self.headers.get("profile.process"),
                                      options.prune, idle, self.taskstats,
                                      self.parent_map is not None,
-                                     self.boot_time,
+                                     self.boot_time, False, proc_sort,
                                      self.exit_proc_pid, self.exit_proc_comm)
 
         if self.kernel is not None:
             self.kernel_tree = ProcessTree(writer, self.kernel, None, 0,
                                            self.headers.get("profile.process"),
-                                           False, None, None, True)
+                                           False, None, None, True, None, False, proc_sort)
 
     def valid(self):
         return self.headers != None and self.disk_stats != None and \

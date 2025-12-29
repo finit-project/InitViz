@@ -39,11 +39,12 @@ class ProcessTree:
 
     def __init__(self, writer, kernel, psstats, sample_period,
                  monitoredApp, prune, idle, taskstats,
-                 accurate_parentage, boot_time=None, for_testing=False,
+                 accurate_parentage, boot_time=None, for_testing=False, proc_sort='start-time',
                  exit_proc_pid=None, exit_proc_comm=None):
         self.writer = writer
         self.process_tree = []
         self.taskstats = taskstats
+        self.proc_sort = proc_sort
         # Convert seconds to centiseconds, like duration is in
         self.boot_time = int(boot_time * 100) if boot_time is not None else None
         self.exit_proc_pid = exit_proc_pid
@@ -108,9 +109,31 @@ class ProcessTree:
                 proc.parent.child_list.append(proc)
 
     def sort(self, process_subtree):
-        """Sort process tree."""
+        """Sort process tree according to the configured sorting strategy."""
+        def get_cpu_time(proc):
+            """Calculate total CPU time for a process from its samples."""
+            if not proc.samples:
+                return 0
+            total = 0
+            for sample in proc.samples:
+                if sample.cpu_sample:
+                    total += sample.cpu_sample.user + sample.cpu_sample.sys
+            return total
+
+        # Choose sorting key based on strategy
+        if self.proc_sort == 'pid':
+            sort_key = lambda p: p.pid
+        elif self.proc_sort == 'end-time':
+            # Sort by end time (start_time + duration)
+            sort_key = lambda p: p.start_time + p.duration
+        elif self.proc_sort == 'cpu-time':
+            # Sort by CPU time descending (most CPU first)
+            sort_key = lambda p: -get_cpu_time(p)
+        else:  # 'start-time' (default)
+            sort_key = lambda p: p.start_time
+
         for p in process_subtree:
-            p.child_list.sort(key = lambda p: p.pid)
+            p.child_list.sort(key = sort_key)
             self.sort(p.child_list)
 
     def num_nodes(self, process_list):
