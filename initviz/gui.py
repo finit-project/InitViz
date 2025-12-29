@@ -478,6 +478,7 @@ class PyBootchartWindow(gtk.Window):
                 ('BestFit', None, '_Best Fit', None, 'Automatically fit content to window', self.on_toggle_best_fit, True),
                 ('ShowPID', None, 'Show _PID', None, 'Show process IDs', self.on_toggle_show_pid, app_options.show_pid),
                 ('ShowAll', None, 'Show _All', None, 'Show full command lines and arguments', self.on_toggle_show_all, app_options.show_all),
+                ('NoPrune', None, '_Trim Procs', '<Control>t', 'Trim the process tree to remove short-lived and idle processes', self.on_toggle_prune_procs, app_options.prune),
                 ('ShowTabs', None, 'Show _Tabs', None, 'Show or hide tab bar', self.on_toggle_tabs, True),
                 ('ShowToolbar', None, 'Show _Toolbar', None, 'Show or hide toolbar', self.on_toggle_toolbar, True),
                 ('ShowStatusbar', None, 'Show _Statusbar', None, 'Show or hide status bar', self.on_toggle_statusbar, True),
@@ -506,6 +507,7 @@ class PyBootchartWindow(gtk.Window):
                                 <separator/>
                                 <menuitem action="ShowPID"/>
                                 <menuitem action="ShowAll"/>
+                                <menuitem action="NoPrune"/>
                                 <separator/>
                                 <menuitem action="ShowTabs"/>
                                 <menuitem action="ShowToolbar"/>
@@ -797,6 +799,12 @@ class PyBootchartWindow(gtk.Window):
         for tab in self.tabs:
             tab.on_toggle_best_fit(action)
 
+    def on_toggle_prune_procs(self, action):
+        # Update prune option
+        self.app_options.prune = action.get_active()
+        # Reload trace with new prune setting
+        self.reload_trace()
+
     def on_toggle_tabs(self, action):
         # Toggle visibility of tab bar
         self.tab_page.set_show_tabs(action.get_active())
@@ -820,6 +828,53 @@ class PyBootchartWindow(gtk.Window):
         action = self.uimanager.get_action('/MenuBar/View/BestFit')
         if action:
             action.set_active(active)
+
+    def reload_trace(self):
+        """Reload the trace with current app_options (e.g., after changing prune setting)"""
+        from . import parsing
+
+        class Writer:
+            def error(self, msg): print(msg)
+            def warn(self, msg): print(msg)
+            def info(self, msg): print(msg)
+            def status(self, msg): print(msg)
+
+        writer = Writer()
+        # Re-parse with new options
+        new_trace = parsing.Trace(writer, [self.trace.filename], self.app_options)
+        self.trace = new_trace
+
+        # Update window title
+        self.set_title("Bootchart %s" % new_trace.filename)
+
+        # Recreate all tabs with new trace
+        # Remove old tabs from notebook
+        while self.tab_page.get_n_pages() > 0:
+            self.tab_page.remove_page(0)
+        self.tabs = []
+
+        # Recreate tabs
+        full_opts = draw.RenderOptions(self.app_options)
+        full_tree = PyBootchartShell(self, new_trace, full_opts, 3.0)
+        self.tab_page.append_page(full_tree, gtk.Label("Full tree"))
+        self.tabs = [full_tree]
+
+        if new_trace.kernel is not None and len(new_trace.kernel) > 2:
+            kernel_opts = draw.RenderOptions(self.app_options)
+            kernel_opts.cumulative = False
+            kernel_opts.charts = False
+            kernel_opts.kernel_only = True
+            kernel_tree = PyBootchartShell(self, new_trace, kernel_opts, 5.0)
+            self.tab_page.append_page(kernel_tree, gtk.Label("Kernel boot"))
+            self.tabs.append(kernel_tree)
+
+        # Update tab visibility
+        show_tabs = len(self.tabs) > 1
+        self.tab_page.set_show_tabs(show_tabs)
+        self.uimanager.get_action('/MenuBar/View/ShowTabs').set_active(show_tabs)
+
+        # Show all new widgets
+        self.tab_page.show_all()
 
     def on_about(self, action):
         about = gtk.AboutDialog()
