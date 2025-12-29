@@ -75,18 +75,18 @@ static StackMap *search_stack(char *stack, size_t len)
 
 static int find_chunks(DumpState *s)
 {
-	FILE *maps;
-	char buffer[1024];
 	size_t result = 0;
+	char buffer[1024];
 	StackMap *map;
 	int ret = 1;
+	FILE *maps;
 
-	snprintf(buffer, 1024, "/proc/%d/maps", s->pid);
+	snprintf(buffer, sizeof(buffer), "/proc/%d/maps", s->pid);
 	maps = fopen(buffer, "r");
 	if (!maps)
 		return ret;
 
-	while (!result && fgets(buffer, 1024, maps)) {
+	while (!result && fgets(buffer, sizeof(buffer), maps)) {
 		char *p, *copy;
 		size_t start, end, toread, read_bytes;
 
@@ -139,7 +139,7 @@ static int find_chunks(DumpState *s)
 
 static DumpState *open_pid(int pid)
 {
-	char name[1024];
+	char name[256];
 	DumpState *s;
 	int status;
 
@@ -158,7 +158,7 @@ static DumpState *open_pid(int pid)
 		return NULL;
 	}
 
-	snprintf(name, 1024, "/proc/%d/mem", pid);
+	snprintf(name, sizeof(name), "/proc/%d/mem", pid);
 	s = calloc(sizeof(DumpState), 1);
 	s->pid = pid;
 	s->mem = open(name, O_RDONLY | O_LARGEFILE);
@@ -204,7 +204,8 @@ static void close_wait_pid(DumpState *s, int avoid_kill)
 
 	/* wait at most second max */
 	for (i = 0; i < 100; i++) {
-		char buffer[1024];
+		char buffer[256];
+
 		snprintf(buffer, sizeof(buffer), PROC_PATH "/%d/cmdline", pid);
 		if (access(buffer, R_OK))
 			break;
@@ -214,8 +215,8 @@ static void close_wait_pid(DumpState *s, int avoid_kill)
 
 static void dump_buffers(DumpState *s)
 {
-	int i, max_chunk;
 	size_t bytes_dumped = 0;
+	int i, max_chunk;
 
 	/* if we wrapped around, the last chunk is probably unhelpful
 	   to parse, due to dis-continuous data, discard it */
@@ -224,12 +225,21 @@ static void dump_buffers(DumpState *s)
 	log("reading %d chunks (of %d) ...\n", max_chunk, s->map.max_chunk);
 	for (i = 0; i < max_chunk; i++) {
 		FILE *output;
-		char buffer[CHUNK_SIZE];
-		Chunk *c = (Chunk *) & buffer;
-		size_t addr = (size_t)s->map.chunks[i];
+		char *buffer;
+		size_t addr;
+		Chunk *c;
+
+		buffer = malloc(CHUNK_SIZE);
+		if (!buffer) {
+			log("Failed to allocate %d bytes for buffer\n", CHUNK_SIZE);
+			continue;
+		}
+
+		c = (Chunk *)buffer;
+		addr = (size_t)s->map.chunks[i];
 
 		lseek(s->mem, addr, SEEK_SET);
-		read(s->mem, &buffer, CHUNK_SIZE);
+		read(s->mem, buffer, CHUNK_SIZE);
 		/*      log ("type: '%s' len %d\n",
 		   c->dest_stream, (int)c->length); */
 
@@ -237,6 +247,7 @@ static void dump_buffers(DumpState *s)
 		fwrite(c->data, 1, c->length, output);
 		bytes_dumped += c->length;
 		fclose(output);
+		free(buffer);
 	}
 	log("wrote %ld kb\n", (long)(bytes_dumped + 1023) / 1024);
 }
@@ -288,11 +299,11 @@ int buffers_extract_and_dump(const char *output_path, Arguments *remote_args)
  */
 int bootchart_find_running_pid(Arguments *opt_args)
 {
-	DIR *proc;
+	Arguments sargs, *args;
+	char exe_path[256];
 	struct dirent *ent;
 	int pid = -1;
-	char exe_path[1024];
-	Arguments sargs, *args;
+	DIR *proc;
 
 	if (opt_args) {
 		args = opt_args;
@@ -314,17 +325,16 @@ int bootchart_find_running_pid(Arguments *opt_args)
 		strcat(exe_path, ent->d_name);
 		strcat(exe_path, "/exe");
 
-		if ((len = readlink(exe_path, link_target, 1024 - 1)) < 0)
+		if ((len = readlink(exe_path, link_target, sizeof(link_target) - 1)) < 0)
 			continue;
 		link_target[len] = '\0';
 
 		if (strstr(link_target, PROGRAM_PREFIX "bootchart" PROGRAM_SUFFIX "-collector")) {
 			FILE *argf;
 			int harmless = 0;
-
 			int p = atoi(ent->d_name);
 
-			/*      log ("found collector '%s' pid %d (my pid %d)\n", link_target, p, getpid()); */
+//			log ("found collector '%s' pid %d (my pid %d)\n", link_target, p, getpid());
 
 			if (p == getpid())
 				continue;	/* I'm not novel */
@@ -332,10 +342,10 @@ int bootchart_find_running_pid(Arguments *opt_args)
 			strcpy(exe_path + strlen(exe_path) - strlen("/exe"), "/cmdline");
 			argf = fopen(exe_path, "r");
 			if (argf) {
-				int i;
 				char abuffer[4096];
+				int i;
 
-				len = fread(abuffer, 1, 4095, argf);
+				len = fread(abuffer, 1, sizeof(abuffer) - 1, argf);
 				if (len > 0) {
 					/* step through args */
 					int argc;
@@ -375,10 +385,16 @@ int bootchart_find_running_pid(Arguments *opt_args)
  */
 int dump_dmsg(const char *output_path)
 {
+	size_t fnamsz = strlen(output_path) + 10;
+	char *fname, *logbuf = NULL;
 	int size, i, count;
-	char *logbuf = NULL;
-	char fname[4096];
 	FILE *dmesg;
+
+	fname = malloc(fnamsz);
+	if (!fname) {
+		log("Failed to allocate memory for dumping dmsg\n");
+		return 1;
+	}
 
 	for (size = 256 * 1024;; size *= 2) {
 		logbuf = (char *)realloc(logbuf, size);
@@ -388,6 +404,7 @@ int dump_dmsg(const char *output_path)
 	}
 
 	if (!count) {
+		free(fname);
 		free(logbuf);
 		log(" odd - no dmesg log data\n");
 		return 1;
@@ -395,8 +412,9 @@ int dump_dmsg(const char *output_path)
 
 	logbuf[count] = '\0';
 
-	snprintf(fname, 4095, "%s/dmesg", output_path);
+	snprintf(fname, fnamsz, "%s/dmesg", output_path);
 	dmesg = fopen(fname, "w");
+	free(fname);
 	if (!dmesg) {
 		free(logbuf);
 		return 1;
@@ -418,6 +436,7 @@ int dump_dmsg(const char *output_path)
 
 	fclose(dmesg);
 	free(logbuf);
+
 	return 0;
 }
 
