@@ -40,6 +40,11 @@ COLLECTOR       = \
 	collector/tasks.o \
 	collector/tasks-netlink.o \
 	collector/dump.o
+COLLECTOR_HDRS  = \
+	collector/common.h \
+	collector/macro.h
+
+all: collector python
 
 collector: \
 	bootchart-collector \
@@ -49,18 +54,11 @@ python: \
 	VERSION \
 	initviz/main.py
 
-all: collector python
-
-%.o:%.c
+%.o:%.c $(COLLECTOR_HDRS)
 	$(CC) $(CFLAGS) $(LDFLAGS) -pthread \
-		-DEARLY_PREFIX='"$(EARLY_PREFIX)"' \
-		-DLIBDIR='"$(LIBDIR)"' \
-		-DPKGLIBDIR='"$(PKGLIBDIR)"' \
-		-DPROGRAM_PREFIX='"$(PROGRAM_PREFIX)"' \
-		-DPROGRAM_SUFFIX='"$(PROGRAM_SUFFIX)"' \
-		-DVERSION='"$(VER)"' \
-		$(CPPFLAGS) \
-		-c $^ -o $@
+	   -DEARLY_PREFIX='"$(EARLY_PREFIX)"' -DLIBDIR='"$(LIBDIR)"' -DPKGLIBDIR='"$(PKGLIBDIR)"' -DPROGRAM_PREFIX='"$(PROGRAM_PREFIX)"' -DPROGRAM_SUFFIX='"$(PROGRAM_SUFFIX)"' -DVERSION='"$(VER)"' \
+	   $(CPPFLAGS) \
+	   -c $< -o $@
 
 substitute_variables = \
 	sed -s \
