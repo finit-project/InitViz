@@ -2,6 +2,40 @@
 
 This document describes how to build and publish InitViz to PyPI.
 
+## TL;DR
+
+Generate Python files and build distribution packages:
+
+```bash
+make pypi-build
+```
+
+### Testing Locally
+
+Test the built package:
+
+```bash
+make pypi-test
+```
+
+### Publishing
+
+Upload to TestPyPI first (recommended):
+
+```bash
+make pypi-upload-test
+```
+
+Then publish to PyPI:
+
+```bash
+make pypi-upload
+```
+
+For detailed PyPI instructions, see below.
+
+---
+
 ## Prerequisites
 
 Install build tools:
