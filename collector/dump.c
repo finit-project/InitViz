@@ -239,7 +239,16 @@ static void dump_buffers(DumpState *s)
 		addr = (size_t)s->map.chunks[i];
 
 		lseek(s->mem, addr, SEEK_SET);
-		read(s->mem, buffer, CHUNK_SIZE);
+		ssize_t bytes_read = read(s->mem, buffer, CHUNK_SIZE);
+		if (bytes_read < (ssize_t)sizeof(Chunk)) {
+			log("Failed to read chunk %d header from memory (got %zd bytes)\n", i, bytes_read);
+			free(buffer);
+			continue;
+		}
+		if (bytes_read < CHUNK_SIZE) {
+			log("Warning: partial read of chunk %d (%zd of %d bytes)\n",
+			    i, bytes_read, CHUNK_SIZE);
+		}
 		/*      log ("type: '%s' len %d\n",
 		   c->dest_stream, (int)c->length); */
 
