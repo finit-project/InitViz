@@ -892,21 +892,23 @@ class PyBootchartWindow(gtk.Window):
         self.statusbar_frame = statusbar_frame
         main_vbox.pack_start(statusbar_frame, False, True, 0)
 
-        # Calculate and display boot time
+        full_opts = RenderOptions(app_options)
+        full_tree = PyBootchartShell(window, trace, full_opts, 5.0)
+        tab_page.append_page(full_tree, gtk.Label("Full tree"))
+        self.tabs = [full_tree]
+
+        # Calculate and display boot time (after rendering setup to get adjusted values)
         proc_tree = trace.proc_tree
         if proc_tree.idle:
             duration = proc_tree.idle
         else:
             duration = proc_tree.duration
-        dur = duration / 100.0
+        # Use boot_time if available (adjusted to exit_proc), otherwise use duration
+        boot_time = proc_tree.boot_time or duration
+        dur = boot_time / 100.0
         boot_time_str = '%02d:%05.2f' % (math.floor(dur/60), dur - 60 * math.floor(dur/60))
         statusbar.push(0, "Boot time: %s" % boot_time_str)
         GObject.timeout_add(5000, lambda: statusbar.pop(0))
-
-        full_opts = RenderOptions(app_options)
-        full_tree = PyBootchartShell(window, trace, full_opts, 5.0)
-        tab_page.append_page(full_tree, gtk.Label("Full tree"))
-        self.tabs = [full_tree]
 
         if trace.kernel is not None and len(trace.kernel) > 2:
             kernel_opts = RenderOptions(app_options)
