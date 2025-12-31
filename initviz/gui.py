@@ -403,6 +403,49 @@ class PyBootchartShell(gtk.VBox):
         self.widget2 = PyBootchartWidget(trace, options, xscale)
         self.widget2.parent_window = window  # Store window reference for updating actions
 
+        # Create search bar (initially hidden)
+        self.search_bar = gtk.HBox(False, 6)
+        self.search_bar.set_border_width(3)
+
+        search_label = gtk.Label("Find:")
+        self.search_bar.pack_start(search_label, False, False, 0)
+
+        self.search_entry = gtk.Entry()
+        self.search_entry.connect('changed', self.on_search_changed)
+        self.search_entry.connect('key-press-event', self.on_search_key_press)
+        self.search_bar.pack_start(self.search_entry, True, True, 0)
+
+        # Previous button
+        self.prev_button = gtk.Button()
+        self.prev_button.set_relief(gtk.ReliefStyle.NONE)
+        self.prev_button.add(gtk.Image.new_from_stock(gtk.STOCK_GO_UP, gtk.IconSize.MENU))
+        self.prev_button.set_tooltip_text("Previous match")
+        self.prev_button.connect('clicked', self.on_search_prev)
+        self.search_bar.pack_start(self.prev_button, False, False, 0)
+
+        # Next button
+        self.next_button = gtk.Button()
+        self.next_button.set_relief(gtk.ReliefStyle.NONE)
+        self.next_button.add(gtk.Image.new_from_stock(gtk.STOCK_GO_DOWN, gtk.IconSize.MENU))
+        self.next_button.set_tooltip_text("Next match")
+        self.next_button.connect('clicked', self.on_search_next)
+        self.search_bar.pack_start(self.next_button, False, False, 0)
+
+        self.search_label = gtk.Label("")
+        self.search_bar.pack_start(self.search_label, False, False, 0)
+
+        close_button = gtk.Button()
+        close_button.set_relief(gtk.ReliefStyle.NONE)
+        close_button.add(gtk.Image.new_from_stock(gtk.STOCK_CLOSE, gtk.IconSize.MENU))
+        close_button.connect('clicked', self.on_search_close)
+        self.search_bar.pack_start(close_button, False, False, 0)
+
+        # Track current match position
+        self.search_matches = []  # List of (y_position, process) tuples
+        self.current_match_index = 0
+
+        self.pack_start(self.search_bar, False, False, 0)
+
         # Scrolled window
         scrolled = gtk.ScrolledWindow(self.widget2.hadj, self.widget2.vadj)
         scrolled.add(self.widget2)
@@ -411,6 +454,8 @@ class PyBootchartShell(gtk.VBox):
         # Pack scrolled area only (toolbar is now in PyBootchartWindow)
         self.pack_start(scrolled, True, True, 0)
         self.show_all()
+        self.search_bar.set_no_show_all(True)
+        self.search_bar.hide()  # Ensure it's hidden by default
 
     def grab_focus(self, window):
         window.set_focus(self.widget2)
@@ -433,6 +478,254 @@ class PyBootchartShell(gtk.VBox):
             # Immediately apply best fit when enabled
             allocation = self.widget2.get_allocation()
             self.widget2.zoom_to_best_fit(allocation)
+
+    def show_search(self):
+        """Show the search bar and focus the entry"""
+        self.search_bar.show()
+        self.search_entry.grab_focus()
+
+    def on_search_changed(self, entry):
+        """Handle search text changes"""
+        search_text = entry.get_text().lower()
+        self.widget2.options.search_query = search_text if search_text else None
+
+        # Build list of all matches and scroll to first
+        if search_text:
+            self.build_match_list(search_text)
+            num_matches = len(self.search_matches)
+            if num_matches > 0:
+                self.current_match_index = 0
+                self.update_match_label()
+                self.scroll_to_match(self.current_match_index)
+                # Enable/disable navigation buttons
+                self.prev_button.set_sensitive(num_matches > 1)
+                self.next_button.set_sensitive(num_matches > 1)
+            else:
+                self.search_label.set_text("0 matches")
+                self.prev_button.set_sensitive(False)
+                self.next_button.set_sensitive(False)
+        else:
+            self.search_label.set_text("")
+            self.search_matches = []
+            self.current_match_index = 0
+            self.prev_button.set_sensitive(False)
+            self.next_button.set_sensitive(False)
+
+        # Redraw to highlight matches
+        self.widget2.queue_draw()
+
+    def count_matches(self, search_text):
+        """Count how many processes match the search query"""
+        count = 0
+        proc_tree = self.widget2.options.proc_tree(self.trace)
+        if proc_tree and proc_tree.process_tree:
+            count = self._count_matches_recursive(proc_tree.process_tree, search_text)
+        return count
+
+    def _count_matches_recursive(self, process_list, search_text):
+        """Recursively count matches in process tree"""
+        count = 0
+        for proc in process_list:
+            # Check if process matches
+            if search_text in proc.cmd.lower():
+                count += 1
+            elif proc.exe and search_text in proc.exe.lower():
+                count += 1
+            elif proc.args:
+                for arg in proc.args:
+                    if search_text in arg.lower():
+                        count += 1
+                        break
+            # Check children
+            if proc.child_list:
+                count += self._count_matches_recursive(proc.child_list, search_text)
+        return count
+
+    def scroll_to_first_match(self, search_text):
+        """Scroll viewport to show the first matching process"""
+        proc_tree = self.widget2.options.proc_tree(self.trace)
+        if not proc_tree or not proc_tree.process_tree:
+            return
+
+        # Constants from draw.py
+        proc_h = 16  # Height of each process bar
+
+        # Estimate starting Y position for processes
+        # This needs to account for: header + charts (if shown) + process chart header
+        # Rough estimates: header ~= 60-80px, charts (if enabled) ~= 200-300px
+        # Process chart header = 60px
+        if self.widget2.options.charts:
+            # With charts enabled (default)
+            start_y = 350  # Approximate: header + CPU chart + disk chart + mem chart + proc header
+        else:
+            # Charts disabled
+            start_y = 120  # Approximate: header + proc header
+
+        # Find Y position of first match (in chart coordinates)
+        y_pos = self._find_first_match_position(proc_tree.process_tree, search_text, start_y, proc_h, proc_tree)
+
+        if y_pos is not None:
+            # Convert from chart coordinates to screen coordinates
+            zoom_ratio = self.widget2.zoom_ratio
+            y_screen = y_pos * zoom_ratio
+
+            # Scroll to position, centering it in the viewport if possible
+            vadj = self.widget2.vadj
+            viewport_height = vadj.get_page_size()
+
+            # Center the match in the viewport
+            scroll_pos = y_screen - (viewport_height / 2)
+
+            # Clamp to valid range
+            scroll_pos = max(0, min(scroll_pos, vadj.get_upper() - viewport_height))
+
+            vadj.set_value(scroll_pos)
+
+    def _find_first_match_position(self, process_list, search_text, current_y, proc_h, proc_tree):
+        """Recursively find Y position of first matching process"""
+        for proc in process_list:
+            # Check if this process matches
+            if search_text in proc.cmd.lower():
+                return current_y
+            elif proc.exe and search_text in proc.exe.lower():
+                return current_y
+            elif proc.args:
+                for arg in proc.args:
+                    if search_text in arg.lower():
+                        return current_y
+
+            # Check children
+            if proc.child_list:
+                child_y = current_y + proc_h
+                result = self._find_first_match_position(proc.child_list, search_text, child_y, proc_h, proc_tree)
+                if result is not None:
+                    return result
+
+            # Move to next sibling
+            current_y += proc_h * proc_tree.num_nodes([proc])
+
+        return None
+
+    def build_match_list(self, search_text):
+        """Build a list of all matching processes with their Y positions"""
+        self.search_matches = []
+        proc_tree = self.widget2.options.proc_tree(self.trace)
+        if not proc_tree or not proc_tree.process_tree:
+            return
+
+        # Constants from draw.py
+        proc_h = 16
+
+        # Estimate starting Y position
+        if self.widget2.options.charts:
+            start_y = 350
+        else:
+            start_y = 120
+
+        # Collect all matches
+        self._collect_matches_recursive(proc_tree.process_tree, search_text, start_y, proc_h, proc_tree)
+
+    def _collect_matches_recursive(self, process_list, search_text, current_y, proc_h, proc_tree):
+        """Recursively collect all matching processes"""
+        for proc in process_list:
+            # Check if this process matches
+            matches = False
+            if search_text in proc.cmd.lower():
+                matches = True
+            elif proc.exe and search_text in proc.exe.lower():
+                matches = True
+            elif proc.args:
+                for arg in proc.args:
+                    if search_text in arg.lower():
+                        matches = True
+                        break
+
+            if matches:
+                self.search_matches.append(current_y)
+
+            # Check children
+            if proc.child_list:
+                child_y = current_y + proc_h
+                self._collect_matches_recursive(proc.child_list, search_text, child_y, proc_h, proc_tree)
+
+            # Move to next sibling
+            current_y += proc_h * proc_tree.num_nodes([proc])
+
+    def scroll_to_match(self, match_index):
+        """Scroll to show the match at the given index"""
+        if match_index < 0 or match_index >= len(self.search_matches):
+            return
+
+        y_pos = self.search_matches[match_index]
+
+        # Convert from chart coordinates to screen coordinates
+        zoom_ratio = self.widget2.zoom_ratio
+        y_screen = y_pos * zoom_ratio
+
+        # Scroll to position, centering it in the viewport if possible
+        vadj = self.widget2.vadj
+        viewport_height = vadj.get_page_size()
+
+        # Center the match in the viewport
+        scroll_pos = y_screen - (viewport_height / 2)
+
+        # Clamp to valid range
+        scroll_pos = max(0, min(scroll_pos, vadj.get_upper() - viewport_height))
+
+        vadj.set_value(scroll_pos)
+
+    def update_match_label(self):
+        """Update the match count label"""
+        if len(self.search_matches) > 0:
+            self.search_label.set_text("%d/%d" % (self.current_match_index + 1, len(self.search_matches)))
+        else:
+            self.search_label.set_text("0 matches")
+
+    def on_search_prev(self, button):
+        """Navigate to previous match"""
+        if len(self.search_matches) == 0:
+            return
+
+        self.current_match_index = (self.current_match_index - 1) % len(self.search_matches)
+        self.update_match_label()
+        self.scroll_to_match(self.current_match_index)
+        self.widget2.queue_draw()
+
+    def on_search_next(self, button):
+        """Navigate to next match"""
+        if len(self.search_matches) == 0:
+            return
+
+        self.current_match_index = (self.current_match_index + 1) % len(self.search_matches)
+        self.update_match_label()
+        self.scroll_to_match(self.current_match_index)
+        self.widget2.queue_draw()
+
+    def on_search_key_press(self, entry, event):
+        """Handle key presses in search entry"""
+        if event.keyval == Gdk.keyval_from_name('Escape'):
+            self.on_search_close(None)
+            return True
+        elif event.keyval == Gdk.keyval_from_name('F3'):
+            if event.state & Gdk.ModifierType.SHIFT_MASK:
+                # Shift+F3 = Previous
+                self.on_search_prev(None)
+            else:
+                # F3 = Next
+                self.on_search_next(None)
+            return True
+        elif event.keyval == Gdk.keyval_from_name('Return'):
+            # Enter = Next match
+            self.on_search_next(None)
+            return True
+        return False
+
+    def on_search_close(self, button):
+        """Close the search bar"""
+        self.search_bar.hide()
+        self.search_entry.set_text("")
+        self.widget2.options.search_query = None
+        self.widget2.queue_draw()
 
 
 class PyBootchartWindow(gtk.Window):
@@ -471,6 +764,7 @@ class PyBootchartWindow(gtk.Window):
                 ('ZoomOut', gtk.STOCK_ZOOM_OUT, None, '<Control>minus', 'Zoom out', self.on_zoom_out),
                 ('ZoomFit', gtk.STOCK_ZOOM_FIT, 'Fit Width', None, 'Fit to width', self.on_zoom_fit),
                 ('Zoom100', gtk.STOCK_ZOOM_100, None, '<Control>0', 'Original size', self.on_zoom_100),
+                ('Find', gtk.STOCK_FIND, None, '<Control>f', 'Find process', self.on_find),
                 ('Sort', None, '_Sort'),
                 ('Help', None, '_Help'),
                 ('About', gtk.STOCK_ABOUT, None, None, 'About InitViz', self.on_about),
@@ -517,6 +811,8 @@ class PyBootchartWindow(gtk.Window):
                                 <menuitem action="Expand"/>
                                 <menuitem action="Contract"/>
                                 <separator/>
+                                <menuitem action="Find"/>
+                                <separator/>
                                 <menuitem action="ZoomIn"/>
                                 <menuitem action="ZoomOut"/>
                                 <menuitem action="ZoomFit"/>
@@ -545,6 +841,8 @@ class PyBootchartWindow(gtk.Window):
                 <toolbar name="ToolBar">
                         <toolitem action="Open"/>
                         <toolitem action="Save"/>
+                        <separator/>
+                        <toolitem action="Find"/>
                         <separator/>
                         <toolitem action="ZoomIn"/>
                         <toolitem action="ZoomOut"/>
@@ -660,6 +958,11 @@ class PyBootchartWindow(gtk.Window):
 
     def on_zoom_100(self, action):
         self.get_current_tab().widget2.on_zoom_100(action)
+
+    def on_find(self, action):
+        """Show the search bar in the current tab"""
+        current_tab = self.get_current_tab()
+        current_tab.show_search()
 
     def on_open(self, action):
         dialog = gtk.FileChooserDialog(

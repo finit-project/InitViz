@@ -33,6 +33,7 @@ class RenderOptions:
 		self.charts = True
 		self.kernel_only = False
 		self.app_options = app_options
+		self.search_query = None  # Search query for highlighting processes
 
 	def proc_tree (self, trace):
 		if self.kernel_only:
@@ -282,6 +283,7 @@ leg_s = 10
 MIN_IMG_W = 800
 CUML_HEIGHT = 2000 # Increased value to accomodate CPU and I/O Graphs
 OPTIONS = None
+RENDER_OPTIONS = None
 
 def extents(options, xscale, trace):
 	proc_tree = options.proc_tree(trace)
@@ -389,8 +391,9 @@ def render_charts(ctx, options, clip, trace, curr_y, w, h, sec_w):
 #
 def render(ctx, options, xscale, trace):
 	(w, h) = extents (options, xscale, trace)
-	global OPTIONS
+	global OPTIONS, RENDER_OPTIONS
 	OPTIONS = options.app_options
+	RENDER_OPTIONS = options
 
 	proc_tree = options.proc_tree(trace)
 
@@ -513,12 +516,38 @@ def draw_header (ctx, headers, boot_time):
 
     return header_y
 
+def process_matches_search(proc, search_query):
+	"""Check if a process matches the search query"""
+	if not search_query:
+		return False
+	search_lower = search_query.lower()
+	if search_lower in proc.cmd.lower():
+		return True
+	if proc.exe and search_lower in proc.exe.lower():
+		return True
+	if proc.args:
+		for arg in proc.args:
+			if search_lower in arg.lower():
+				return True
+	return False
+
 def draw_processes_recursively(ctx, proc, proc_tree, y, proc_h, rect, clip, exit_proc_pos=None) :
 	x = rect[0] +  ((proc.start_time - proc_tree.start_time) * rect[2] / proc_tree.duration)
 	w = ((proc.duration) * rect[2] / proc_tree.duration)
 
 	draw_process_activity_colors(ctx, proc, proc_tree, x, y, w, proc_h, rect, clip)
 	draw_rect(ctx, PROC_BORDER_COLOR, (x, y, w, proc_h))
+
+	# Highlight if process matches search query
+	if RENDER_OPTIONS and RENDER_OPTIONS.search_query and process_matches_search(proc, RENDER_OPTIONS.search_query):
+		# Draw a bright yellow/orange border around matching processes
+		highlight_color = (1.0, 0.7, 0.0, 1.0)  # Orange
+		ctx.set_source_rgba(*highlight_color)
+		ctx.set_line_width(3)
+		ctx.rectangle(x, y, w, proc_h)
+		ctx.stroke()
+		ctx.set_line_width(1)
+
 	ipid = int(proc.pid)
 	if not OPTIONS.show_all:
 		cmdString = proc.cmd
