@@ -735,7 +735,9 @@ class PyBootchartWindow(gtk.Window):
 
         window = self
         window.set_title("Bootchart %s" % trace.filename)
-        window.set_default_size(750, 550)
+        screen = window.get_screen()
+        window.set_default_size(int(screen.get_width() * 0.95),
+                                int(screen.get_height() * 0.95))
 
         self.trace = trace
         self.app_options = app_options
@@ -902,7 +904,7 @@ class PyBootchartWindow(gtk.Window):
         GObject.timeout_add(5000, lambda: statusbar.pop(0))
 
         full_opts = RenderOptions(app_options)
-        full_tree = PyBootchartShell(window, trace, full_opts, 3.0)
+        full_tree = PyBootchartShell(window, trace, full_opts, 5.0)
         tab_page.append_page(full_tree, gtk.Label("Full tree"))
         self.tabs = [full_tree]
 
@@ -1250,7 +1252,7 @@ class PyBootchartWindow(gtk.Window):
 
         # Recreate tabs
         full_opts = draw.RenderOptions(self.app_options)
-        full_tree = PyBootchartShell(self, new_trace, full_opts, 3.0)
+        full_tree = PyBootchartShell(self, new_trace, full_opts, 5.0)
         self.tab_page.append_page(full_tree, gtk.Label("Full tree"))
         self.tabs = [full_tree]
 
