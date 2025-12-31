@@ -52,6 +52,8 @@ class Trace:
         self.parent_map = None
         self.mem_stats = None
         self.boot_time = None  # Time when EXIT_PROC was detected
+        self.exit_proc_pid = None  # PID of the EXIT_PROC process
+        self.exit_proc_comm = None  # Command name of the EXIT_PROC process
 
         parse_paths (writer, self, paths)
         if not self.valid():
@@ -85,7 +87,8 @@ class Trace:
                                      self.headers.get("profile.process"),
                                      options.prune, idle, self.taskstats,
                                      self.parent_map is not None,
-                                     self.boot_time)
+                                     self.boot_time,
+                                     self.exit_proc_pid, self.exit_proc_comm)
 
         if self.kernel is not None:
             self.kernel_tree = ProcessTree(writer, self.kernel, None, 0,
@@ -672,6 +675,16 @@ def _do_parse(writer, state, name, file):
         line = file.read().strip()
         if line:
             state.boot_time = float(line)
+    elif name == "exit_proc":
+        # PID and comm of the EXIT_PROC process
+        line = file.read().strip()
+        if line:
+            parts = line.split(None, 1)  # Split on whitespace, max 2 parts
+            if len(parts) >= 1:
+                state.exit_proc_pid = int(parts[0]) * 1000  # Multiply by 1000 like other PIDs
+            if len(parts) >= 2:
+                state.exit_proc_comm = parts[1]
+
     elif name == "proc_diskstats.log":
         state.disk_stats = _parse_proc_disk_stat_log(file, get_num_cpus(state.headers))
     elif name == "taskstats.log":

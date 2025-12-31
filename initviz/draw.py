@@ -99,6 +99,8 @@ PROC_COLOR_Z = (0.71, 0.71, 0.71, 1.0)
 PROC_COLOR_X = (0.71, 0.71, 0.71, 0.125)
 # Paging process color.
 PROC_COLOR_W = (0.71, 0.71, 0.71, 0.125)
+# EXIT_PROC process color (bright green to indicate boot completion).
+EXIT_PROC_COLOR = (0.2, 0.9, 0.2, 1.0)
 
 # Process label color.
 PROC_TEXT_COLOR = (0.19, 0.19, 0.19, 1.0)
@@ -450,6 +452,9 @@ def draw_process_bar_chart(ctx, clip, options, proc_tree, times, curr_y, w, h, s
 				 PROC_COLOR_S, off_x+240, curr_y + 45, leg_s)
 		draw_legend_box (ctx, "Zombie",
 				 PROC_COLOR_Z, off_x+360, curr_y + 45, leg_s)
+		if proc_tree.exit_proc_pid is not None:
+			draw_legend_box (ctx, "Boot Complete",
+					 EXIT_PROC_COLOR, off_x+480, curr_y + 45, leg_s)
 		header_size = 45
 
 	chart_rect = [off_x, curr_y + header_size + 15,
@@ -464,10 +469,16 @@ def draw_process_bar_chart(ctx, clip, options, proc_tree, times, curr_y, w, h, s
 	draw_sec_labels (ctx, chart_rect, sec_w, nsec)
 	draw_annotations (ctx, proc_tree, times, chart_rect)
 
+	# Track exit_proc position for drawing boot completion arrow
+	exit_proc_pos = {}
 	y = curr_y + 60
 	for root in proc_tree.process_tree:
-		draw_processes_recursively(ctx, root, proc_tree, y, proc_h, chart_rect, clip)
+		draw_processes_recursively(ctx, root, proc_tree, y, proc_h, chart_rect, clip, exit_proc_pos)
 		y = y + proc_h * proc_tree.num_nodes([root])
+
+	# Draw boot completion arrow and time if exit_proc was found
+	if exit_proc_pos and proc_tree.boot_time is not None:
+		draw_boot_completion_marker(ctx, proc_tree, exit_proc_pos, chart_rect)
 
 
 def draw_header (ctx, headers, boot_time):
@@ -502,7 +513,7 @@ def draw_header (ctx, headers, boot_time):
 
     return header_y
 
-def draw_processes_recursively(ctx, proc, proc_tree, y, proc_h, rect, clip) :
+def draw_processes_recursively(ctx, proc, proc_tree, y, proc_h, rect, clip, exit_proc_pos=None) :
 	x = rect[0] +  ((proc.start_time - proc_tree.start_time) * rect[2] / proc_tree.duration)
 	w = ((proc.duration) * rect[2] / proc_tree.duration)
 
@@ -523,11 +534,17 @@ def draw_processes_recursively(ctx, proc, proc_tree, y, proc_h, rect, clip) :
 
 	draw_label_in_box(ctx, PROC_TEXT_COLOR, cmdString, x, y + proc_h - 4, w, rect[0] + rect[2])
 
+	# Track exit_proc position for arrow drawing
+	if exit_proc_pos is not None and proc_tree.exit_proc_pid is not None and proc.pid == proc_tree.exit_proc_pid:
+		exit_proc_pos['x'] = x
+		exit_proc_pos['y'] = y
+		exit_proc_pos['h'] = proc_h
+
 	next_y = y + proc_h
 	for child in proc.child_list:
 		if next_y > clip[1] + clip[3]:
 			break
-		child_x, child_y = draw_processes_recursively(ctx, child, proc_tree, next_y, proc_h, rect, clip)
+		child_x, child_y = draw_processes_recursively(ctx, child, proc_tree, next_y, proc_h, rect, clip, exit_proc_pos)
 		draw_process_connecting_lines(ctx, x, y, child_x, child_y, proc_h)
 		next_y = next_y + proc_h * proc_tree.num_nodes([child])
 
@@ -539,7 +556,13 @@ def draw_process_activity_colors(ctx, proc, proc_tree, x, y, w, proc_h, rect, cl
 	if y > clip[1] + clip[3] or y + proc_h + 2 < clip[1]:
 		return
 
-	draw_fill_rect(ctx, PROC_COLOR_S, (x, y, w, proc_h))
+	# Use bright green for the EXIT_PROC process to highlight boot completion
+	if proc_tree.exit_proc_pid is not None and proc.pid == proc_tree.exit_proc_pid:
+		base_color = EXIT_PROC_COLOR
+	else:
+		base_color = PROC_COLOR_S
+
+	draw_fill_rect(ctx, base_color, (x, y, w, proc_h))
 
 	last_tx = -1
 	for sample in proc.samples :
@@ -569,6 +592,65 @@ def draw_process_activity_colors(ctx, proc, proc_tree, x, y, w, proc_h, rect, cl
 			continue
 
 		draw_fill_rect(ctx, color, (tx, y, tw, proc_h))
+
+def draw_boot_completion_marker(ctx, proc_tree, exit_proc_pos, chart_rect):
+	"""Draw an arrow from the left margin to the exit_proc start position,
+	   with boot time displayed above the arrow."""
+	if 'x' not in exit_proc_pos:
+		return
+
+	x = exit_proc_pos['x']
+	y = exit_proc_pos['y']
+	h = exit_proc_pos['h']
+
+	# Arrow starts from left edge of chart
+	start_x = chart_rect[0]
+	# Arrow points to middle of exit_proc bar
+	mid_y = y + h / 2
+
+	# Draw arrow line in black
+	ctx.set_source_rgba(*TEXT_COLOR)
+	ctx.set_line_width(2)
+	ctx.move_to(start_x, mid_y)
+	ctx.line_to(x, mid_y)
+	ctx.stroke()
+
+	# Draw arrowhead
+	arrow_size = 6
+	ctx.move_to(x, mid_y)
+	ctx.line_to(x - arrow_size, mid_y - arrow_size/2)
+	ctx.line_to(x - arrow_size, mid_y + arrow_size/2)
+	ctx.close_path()
+	ctx.fill()
+
+	# Draw boot time text above the arrow
+	boot_time_sec = proc_tree.boot_time / 100.0  # Convert centiseconds to seconds
+	boot_text = "Boot: %.2fs" % boot_time_sec
+	ctx.set_font_size(12)
+
+	# Position text in the middle of the arrow, above it
+	text_x = start_x + (x - start_x) / 2
+	text_y = mid_y - 8
+
+	# Get text dimensions for background
+	extents = ctx.text_extents(boot_text)
+	text_w = extents[2]
+	text_h = extents[3]
+
+	# Draw background rectangle for text
+	padding = 2
+	ctx.set_source_rgba(1.0, 1.0, 1.0, 0.9)  # Semi-transparent white
+	ctx.rectangle(text_x - text_w/2 - padding, text_y - text_h - padding,
+	              text_w + 2*padding, text_h + 2*padding)
+	ctx.fill()
+
+	# Draw the text in black
+	ctx.set_source_rgba(*TEXT_COLOR)
+	ctx.move_to(text_x - text_w/2, text_y)
+	ctx.show_text(boot_text)
+
+	# Reset line width
+	ctx.set_line_width(1)
 
 def draw_process_connecting_lines(ctx, px, py, x, y, proc_h):
 	ctx.set_source_rgba(*DEP_COLOR)

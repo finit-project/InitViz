@@ -39,12 +39,15 @@ class ProcessTree:
 
     def __init__(self, writer, kernel, psstats, sample_period,
                  monitoredApp, prune, idle, taskstats,
-                 accurate_parentage, boot_time=None, for_testing=False):
+                 accurate_parentage, boot_time=None, for_testing=False,
+                 exit_proc_pid=None, exit_proc_comm=None):
         self.writer = writer
         self.process_tree = []
         self.taskstats = taskstats
         # Convert seconds to centiseconds, like duration is in
         self.boot_time = int(boot_time * 100) if boot_time is not None else None
+        self.exit_proc_pid = exit_proc_pid
+        self.exit_proc_comm = exit_proc_comm
         if psstats is None:
             process_list = kernel
         elif kernel is None:
@@ -57,6 +60,17 @@ class ProcessTree:
         self.build()
         if not accurate_parentage:
             self.update_ppids_for_daemons(self.process_list)
+
+        # Adjust boot_time to align with exit_proc process start_time
+        # This eliminates sampling jitter and makes boot_time visually consistent
+        if self.exit_proc_pid is not None and self.boot_time is not None:
+            for p in self.process_list:
+                if p.pid == self.exit_proc_pid:
+                    # Align boot_time to the actual start of the exit_proc process
+                    self.boot_time = p.start_time
+                    writer.status("aligned boot_time to exit_proc (PID %d: %s) start: %d cs" %
+                                  (self.exit_proc_pid, self.exit_proc_comm or "unknown", self.boot_time))
+                    break
 
         self.start_time = self.get_start_time(self.process_tree)
         self.end_time = self.get_end_time(self.process_tree)
@@ -180,7 +194,10 @@ class ProcessTree:
             if parent != None or len(p.child_list) == 0:
 
                 prune = False
-                if is_idle_background_process_without_children(p):
+                # Never prune the EXIT_PROC process
+                if self.exit_proc_pid is not None and p.pid == self.exit_proc_pid:
+                    prune = False
+                elif is_idle_background_process_without_children(p):
                     prune = True
                 elif p.duration <= 2 * self.sample_period:
                     # short-lived process
