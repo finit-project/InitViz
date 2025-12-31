@@ -171,10 +171,10 @@ class PyBootchartWidget(gtk.DrawingArea, gtk.Scrollable):
             self.zoom_to_best_fit(allocation)
 
     def on_expand(self, action):
-        self.set_xscale (self.xscale * 1.5)
+        self.set_xscale (self.xscale * 1.1)
 
     def on_contract(self, action):
-        self.set_xscale (self.xscale / 1.5)
+        self.set_xscale (self.xscale / 1.1)
 
     def on_zoom_in(self, action):
         self.zoom_image(self.zoom_ratio * self.ZOOM_INCREMENT)
