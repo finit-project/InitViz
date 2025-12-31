@@ -481,6 +481,7 @@ class PyBootchartWindow(gtk.Window):
                 ('ShowPID', None, 'Show P_ID', '<Control>i', 'Show process IDs', self.on_toggle_show_pid, app_options.show_pid),
                 ('ShowAll', None, 'Show _All', '<Control>a', 'Show full command lines and arguments', self.on_toggle_show_all, app_options.show_all),
                 ('NoPrune', None, '_Trim Procs', '<Control>t', 'Trim the process tree to remove short-lived and idle processes', self.on_toggle_prune_procs, app_options.prune),
+                ('ShowKernel', None, 'Show _Kernel Threads', '<Control>k', 'Show or hide kernel threads in the process tree', self.on_toggle_show_kernel, app_options.show_kernel if hasattr(app_options, 'show_kernel') else True),
                 ('ShowTabs', None, 'Show _Tabs', None, 'Show or hide tab bar', self.on_toggle_tabs, True),
                 ('ShowToolbar', None, 'Show _Toolbar', None, 'Show or hide toolbar', self.on_toggle_toolbar, True),
                 ('ShowStatusbar', None, 'Show _Statusbar', None, 'Show or hide status bar', self.on_toggle_statusbar, True),
@@ -525,6 +526,7 @@ class PyBootchartWindow(gtk.Window):
                                 <menuitem action="ShowPID"/>
                                 <menuitem action="ShowAll"/>
                                 <menuitem action="NoPrune"/>
+                                <menuitem action="ShowKernel"/>
                                 <separator/>
                                 <menuitem action="ShowTabs"/>
                                 <menuitem action="ShowToolbar"/>
@@ -879,6 +881,12 @@ class PyBootchartWindow(gtk.Window):
         # Update prune option
         self.app_options.prune = action.get_active()
         # Reload trace with new prune setting
+        self.reload_trace()
+
+    def on_toggle_show_kernel(self, action):
+        # Update show_kernel option
+        self.app_options.show_kernel = action.get_active()
+        # Reload trace with new show_kernel setting
         self.reload_trace()
 
     def on_sort_changed(self, action, current):

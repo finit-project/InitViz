@@ -40,11 +40,12 @@ class ProcessTree:
     def __init__(self, writer, kernel, psstats, sample_period,
                  monitoredApp, prune, idle, taskstats,
                  accurate_parentage, boot_time=None, for_testing=False, proc_sort='start-time',
-                 exit_proc_pid=None, exit_proc_comm=None):
+                 exit_proc_pid=None, exit_proc_comm=None, show_kernel=True):
         self.writer = writer
         self.process_tree = []
         self.taskstats = taskstats
         self.proc_sort = proc_sort
+        self.show_kernel = show_kernel
         # Convert seconds to centiseconds, like duration is in
         self.boot_time = int(boot_time * 100) if boot_time is not None else None
         self.exit_proc_pid = exit_proc_pid
@@ -90,6 +91,10 @@ class ProcessTree:
             p_threads = self.merge_siblings(self.process_tree)
             p_runs = self.merge_runs(self.process_tree)
             writer.status("pruned %i process, %i exploders, %i threads, and %i runs" % (p_processes, p_exploders, p_threads, p_runs))
+
+        if not self.show_kernel:
+            k_threads = self.remove_kernel_threads(self.process_tree)
+            writer.status("removed %i kernel threads" % k_threads)
 
         self.sort(self.process_tree)
 
@@ -236,6 +241,41 @@ class ProcessTree:
                     num_removed += self.prune(p.child_list, p)
             else:
                 num_removed += self.prune(p.child_list, p)
+            idx += 1
+
+        return num_removed
+
+    def remove_kernel_threads(self, process_subtree):
+        """Remove kernel threads from the process tree.
+           Kernel threads are identified by:
+           - Having PPID of 2000 (kthreadd, PID 2 × 1000)
+           - Or having command names in square brackets like [kworker/0:0]
+        """
+        def is_kernel_thread(p):
+            # kthreadd has PID 2, multiplied by 1000 = 2000
+            if p.ppid == 2000:
+                return True
+            # Kernel thread command names are typically in square brackets
+            if p.cmd.startswith('[') and p.cmd.endswith(']'):
+                return True
+            return False
+
+        num_removed = 0
+        idx = 0
+        while idx < len(process_subtree):
+            p = process_subtree[idx]
+
+            if is_kernel_thread(p):
+                # Remove this kernel thread and promote its children
+                process_subtree.pop(idx)
+                for c in p.child_list:
+                    process_subtree.insert(idx, c)
+                num_removed += 1
+                continue
+            else:
+                # Recursively check children
+                num_removed += self.remove_kernel_threads(p.child_list)
+
             idx += 1
 
         return num_removed

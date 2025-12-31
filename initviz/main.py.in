@@ -38,6 +38,8 @@ def _mk_options_parser():
 			  help="output path (file or directory) where charts are stored")
 	parser.add_option("-n", "--no-prune", action="store_false", dest="prune", default=True,
 			  help="do not prune the process tree")
+	parser.add_option("-k", "--no-kernel", action="store_false", dest="show_kernel", default=True,
+			  help="hide kernel threads from the process tree")
 	parser.add_option("--sort", dest="proc_sort", default="pid",
 			  choices=["pid", "start-time", "end-time", "cpu-time"],
 			  help="process tree sorting strategy: pid (default), start-time, end-time, cpu-time")
