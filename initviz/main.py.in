@@ -64,6 +64,8 @@ def _mk_options_parser():
 			       "To create a single annotation when any one of a set of processes is started, use commas to separate the names")
 	parser.add_option("--annotate-file", dest="annotate_file", metavar="FILENAME", default=None,
 			  help="filename to write annotation points to")
+	parser.add_option("--xscale", dest="xscale", type="float", metavar="SCALE", default=5.0,
+			  help="timeline scale factor (default: 5.0, same as interactive mode)")
 	return parser
 
 class Writer:

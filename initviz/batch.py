@@ -34,13 +34,16 @@ def render(writer, trace, app_options, filename):
         writer.error ("Unknown format '%s'." % fmt)
         return 10
 
+    # Get xscale from options, defaulting to 5.0 to match interactive mode
+    xscale = getattr(app_options, 'xscale', 5.0)
+
     make_surface, write_surface = handlers[fmt]
     options = RenderOptions (app_options)
-    (w, h) = draw.extents (options, 1.0, trace)
+    (w, h) = draw.extents (options, xscale, trace)
     w = max (w, draw.MIN_IMG_W)
     surface = make_surface (w, h)
     ctx = cairo.Context (surface)
-    draw.render (ctx, options, 1.0, trace)
+    draw.render (ctx, options, xscale, trace)
     write_surface (surface)
     writer.status ("bootchart written to '%s'" % filename)
 
